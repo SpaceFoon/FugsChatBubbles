@@ -4,7 +4,8 @@
 
 /*:
  * @target MV 1.63
- * @plugindesc Speech Bubbles that follow events and stack.
+ * @plugindesc v1.0.0 Speech bubbles that follow events and stack.
+ * @version 1.0.0
  *
  * @author Fugahagen
  *
@@ -240,18 +241,15 @@
  * Terms of Use
  * ============================================================================
  *
- * Free for commercial and non-commercial use.
+ * See the repository LICENSE for GNU GPL-3.0 terms covering use, modification, and redistribution.
  *
  * ============================================================================
- * License: The MIT License
+ * License: GNU General Public License v3.0
  * ============================================================================
  *
  * Copyright 2024 Fugahagen
- * This plugin is released under MIT license.
- * http://opensource.org/licenses/mit-license.php
- * If you violate the license agreement your mother will
- * die in her sleep tonight! All protections nulled!
- *
+ * This plugin is released under the terms in the repository LICENSE.
+   *
  * ============================================================================
  * Credits
  * ============================================================================

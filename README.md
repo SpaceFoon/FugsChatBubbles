@@ -1,5 +1,13 @@
 # Fugs Chatter and Speech Bubbles
 
+**Version:** 1.0.0 · **Engine:** RPG Maker MV 1.6.3 · **License:** GNU GPL-3.0 ([LICENSE](LICENSE)) · **File:** `FugsChatBubbles.js`
+
+## Download
+
+- [GitHub Releases](https://github.com/SpaceFoon/FugsChatBubbles/releases) — versioned install ZIPs will appear here.
+- [Plugin source](https://github.com/SpaceFoon/FugsChatBubbles/blob/main/FugsChatBubbles.js)
+- [Repository](https://github.com/SpaceFoon/FugsChatBubbles)
+
 ## Overview
 
 **Fugs Chatter and Speech Bubbles** is a plugin for RPG Maker MV that enables customizable speech bubbles that follow events and stack. It allows for fully parallel chat bubbles using Pixi, bubble stacking, and animation effects such as bouncing in and fading out. With built-in themes and gradient support, it brings a unique, FF7-style chat experience to your game.
@@ -15,21 +23,6 @@
 - Text and bubbles can use gradients with as many colors as you want.
 - FF7-inspired theme look.
   
-## Future Plans
-
-- Fix minor issues stated below.
-- Add remove all bubbles plugin command.
-- Add plugin commands to change all styles on the fly for each event or all.
-- Stacking bubbles from other events (e.g., actors talking).
-- Add text code support (hook into RMMV window system).
-- Port to MZ.
-- Make it work for battles.
-- Add arrows.
-- Ability to change the Y value in bubble command.
-- Add window skin from image.
-- X and Y bubble placement.
-
-
 ## Plugin Commands
 
 You may leave event or event and duration blank for default values.  
@@ -53,23 +46,11 @@ Example:
 - Errors occur when selecting a follower or event that doesn’t exist.
 - The bubble stays open when battles start (use `Scene_Map.prototype.startEncounterEffect`).
 
-## Terms of Use
+## License and credit
 
-- Free for commercial and non-commercial use.
-- Released under MIT License: [MIT License](http://opensource.org/licenses/mit-license.php)
+The repository's [LICENSE](LICENSE) applies: GNU GPL-3.0. Review it for the terms covering use, modification, and redistribution. Credit Fugahagen if you wish.
 
-## License
-
-Copyright 2024 Fugahagen  
-This plugin is released under the MIT license.
-
-## Credits
-
-Credit "Fugahagen" in your game if you feel like it.
-
-## Plugin Parameters
-
-### Debug Mode
+Mode
 - **Type**: boolean  
 - **Description**: Enable debug logging and testing features  
 - **Default**: `false`
