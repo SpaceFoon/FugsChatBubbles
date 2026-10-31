@@ -522,7 +522,7 @@
     function nextRow() {
       rows.push(row);
       row = {runs: [], width: 0, height: Math.max(settings.lineHeight, bitmap.fontSize+8)};
-      if (rows.length > 256) throw new Error("Bubble exceeds 256 lines.");
+      if (rows.length >= 256) throw new Error("Bubble exceeds 256 lines.");
     }
     function add(run) {
       var previous = row.runs[row.runs.length-1];
@@ -538,6 +538,8 @@
       }
       row.width += run.width;
       row.height = Math.max(row.height, run.height);
+      // Fail before repeatedly measuring a growing, unwrapped oversized line.
+      if (row.width > 8184) throw new Error("Bubble line exceeds safe bitmap width.");
     }
     win.processDrawIcon = function (index, state) {
       var size = typeof ImageManager.iconWidth === "number" ? ImageManager.iconWidth : Window_Base._iconWidth;
@@ -559,9 +561,17 @@
             state.x = row.width; state.y = 0;
             // Message waits/input have no meaning for simultaneous instant bubbles.
             if (!/^[\$\.\|\^!><]$/.test(match[0])) {
-              win.processEscapeCharacter(match[0].toUpperCase(), state);
+              var code = match[0].toUpperCase();
+              var nativeSize = code === "FS" && typeof Utils !== "undefined" && Utils.RPGMAKER_NAME === "MZ";
+              if (!/^(C|I|\{|\})$/.test(code) && !nativeSize) {
+                throw new Error("Text code requires normal dialogue: " + code);
+              }
+              win.processEscapeCharacter(code, state);
+              if (!isFinite(bitmap.fontSize) || bitmap.fontSize <= 0 || bitmap.fontSize > 512) {
+                throw new Error("Text code font size exceeds safe range.");
+              }
             }
-          }
+          } else throw new Error("Unsupported text escape sequence.");
         } else {
           // Keep supplementary Unicode characters and combining marks together.
           if (/[\uD800-\uDBFF]/.test(c) && /[\uDC00-\uDFFF]/.test(state.text[state.index] || "")) {

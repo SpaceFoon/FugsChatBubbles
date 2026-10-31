@@ -29,13 +29,13 @@ The marker belongs to that event interpreter, not other parallel events or a cal
 
 ### Text codes and presentation
 
-Converted Show Text uses the game's `Window_Base.convertEscapeCharacters` and inline escape handlers. Supported stock codes include `\V[n]`, `\N[n]`, `\P[n]`, `\G`, `\C[n]`, `\I[n]`, `\{`, and `\}`. Write a single backslash in the editor. Use `\\` for a literal backslash. Explicit newlines are preserved; text wraps and lines are centered. MZ's `GameFont` setting resolves to the game's main font.
+Converted Show Text uses the game's `Window_Base.convertEscapeCharacters` and supported inline escape handlers. Supported stock codes include `\V[n]`, `\N[n]`, `\P[n]`, `\G`, `\C[n]`, `\I[n]`, `\{`, and `\}`; MZ also allows `\FS[n]` for font sizes from 1 to 512. Write a single backslash in the editor. Use `\\` for a literal backslash. Explicit newlines are preserved; text wraps and lines are centered. MZ's `GameFont` setting resolves to the game's main font.
 
 Converted text uses the configured font and first theme text color, then honors inline color/font changes. It does not use the legacy renderer's text gradient. Background gradients, opacity, borders, placement, stacking, and lifetime still apply.
 
 Bubbles appear instantly and do not accept input. Message waits, pauses, fast-text controls, gold-window commands, and final input suppression (`\.`, `\|`, `\!`, `\>`, `\<`, `\$`, `\^`) are ignored. Faces, MZ speaker names, and Show Text followed immediately by choices, number input, or item selection keep the entire command as normal dialogue, consuming the marker. Missing targets, empty text, or rendering failures also fall back to normal Show Text instead of dropping dialogue. Text is limited to 16,384 converted characters, 256 wrapped lines, and a 4-megapixel bitmap; larger text falls back to normal dialogue.
 
-Plugins extending `Window_Base` conversion or inline font/color handling can participate. Plugins requiring `Window_Message`, custom drawing, text positioning, animation, or additional window state need individual integration testing. The plugin does not instantiate another `Window_Message` or replace the game's shared message state.
+Plugins extending `Window_Base` conversion can participate, as can extensions to the supported inline codes. Any remaining unsupported escape code (including custom drawing and text-positioning codes) keeps the entire Show Text as normal dialogue; it is not silently stripped. Plugins requiring `Window_Message`, animation, or additional window state need individual integration testing. The plugin does not instantiate another `Window_Message` or replace the game's shared message state.
 
 ## Legacy direct text commands (MV)
 
@@ -121,7 +121,7 @@ Run the regression harness with an installed MV SDK runtime:
     powershell -ExecutionPolicy Bypass -File tests/run-mv.ps1
     powershell -ExecutionPolicy Bypass -File tests/run-mv.ps1 -EnginePath "C:\path\to\RPG Maker MV"
 
-The harness uses the installation's Chromium, Pixi, GameFont, Bitmap, Window_Base, windowskin, and icons with small game-state stubs. It checks text conversion, interpreter isolation/fallback, the MZ registered-command callbacks and parameter adapter, real text/canvas geometry, commands, timing, stacking, and resource cleanup. Scratch files are removed afterward. This is an MV runtime test, not a full MZ engine or third-party message-plugin playtest.
+The harness uses the installation's Chromium, Pixi, GameFont, Bitmap, Window_Base, windowskin, and icons with small game-state stubs. It also loads the real MV Game_Interpreter and Game_Message to test event execution, normal-message waits, choices and callbacks, and unsupported-code fallback. All 170 assertions pass, including real Canvas/WebGL rendering and repeated formatted-texture cleanup. MZ registered-command callbacks and the parameter adapter are checked inside MV. Scratch files are removed afterward. This is not a full MZ engine or third-party message-plugin playtest.
 
 See [CHANGELOG.md](CHANGELOG.md) and [BUGS.md](BUGS.md) for the fix record.
 

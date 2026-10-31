@@ -29,11 +29,15 @@ try {
       (Join-Path $EnginePath 'NewData\js\libs\pixi-picture.js'),
       (Join-Path $EnginePath 'NewData\js\rpg_core.js'),
       (Join-Path $EnginePath 'NewData\js\rpg_windows.js'),
+      (Join-Path $EnginePath 'NewData\js\rpg_objects.js'),
       (Join-Path $PSScriptRoot 'setup.js'),
       (Join-Path $repoPath 'FugsChatBubbles.js'),
       (Join-Path $PSScriptRoot 'next-text.js'), (Join-Path $PSScriptRoot 'runtime.js'))) {
     Copy-Item -LiteralPath $scriptPath -Destination $scratchPath
     $html += '<script src="' + (Split-Path -Leaf $scriptPath) + '"></script>'
+    if ((Split-Path -Leaf $scriptPath) -eq 'rpg_objects.js') {
+      $html += '<script>window.NativeInterpreter=Game_Interpreter;window.NativeMessage=Game_Message;</script>'
+    }
   }
   $html | Set-Content -LiteralPath (Join-Path $scratchPath 'index.html') -Encoding utf8
   $testProcess = Start-Process -FilePath $engineExe -ArgumentList (
@@ -49,12 +53,19 @@ try {
   if (!$result.passed) { throw $result.error }
 } finally {
   if ($testProcess -and !$testProcess.HasExited) {
-    Stop-Process -Id $testProcess.Id -ErrorAction SilentlyContinue
+    # Let NW finish closing its renderer/profile before removing the package.
+    if (!$testProcess.WaitForExit(5000)) {
+      Stop-Process -Id $testProcess.Id -ErrorAction SilentlyContinue
+      $testProcess.WaitForExit()
+    }
   }
   # This task creates this exact scratch path; never remove an existing folder.
   if ($createdScratch -and (Test-Path -LiteralPath $scratchPath)) {
     $resolvedScratch = (Resolve-Path -LiteralPath $scratchPath).Path
     if ($resolvedScratch -ne (Join-Path $repoPath '.runtime-check')) { throw 'Unexpected scratch path.' }
-    Remove-Item -LiteralPath $resolvedScratch -Recurse -Force
+    for ($attempt = 0; $attempt -lt 10; $attempt++) {
+      try { Remove-Item -LiteralPath $resolvedScratch -Recurse -Force; break }
+      catch { if ($attempt -eq 9) { throw }; Start-Sleep -Milliseconds 100 }
+    }
   }
 }

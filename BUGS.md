@@ -24,9 +24,11 @@ The findings from the 2026-10-31 review were addressed in version 1.0.1 and rech
 
 Verification: 119 assertions passed using the installed MV Chromium 65.0.3325.146, Pixi 4.5.4, and GameFont. These checks use real Pixi transforms, CanvasRenderer pixels, WebGL rendering, text/canvas rendering, and game-state stubs; they do not launch a full game. Expanded checks cover zero opacity, all theme choices, rounded borders, malformed colors, defaults, moving cameras, literal dashes in dialogue, erased events, and hidden followers.
 
-Remaining integration checks:
+Version 1.1.0 verification: 170 assertions pass in the same MV runtime, now also loading real engine Bitmap/Window_Base code, Window/IconSet assets, Game_Interpreter, and Game_Message. New checks cover native event execution and normal-message waits, choice callbacks, escape conversion/drawing, multiline/wrapped text, Unicode, interpreter isolation and one-shot consumption, busy/asset retries, input/face/speaker fallbacks, cancellation, termination/setup, invalid targets, map changes, oversized text, unsupported-code fallback, repeated formatted-texture cleanup, scene rendering, MZ registered-command callbacks, and MZ font mapping. The MZ adapter checks run inside MV; they do not establish full MZ runtime compatibility.
 
-Version 1.1.0 verification: 156 assertions pass in the same MV runtime, now also loading real engine Bitmap/Window_Base code and Window/IconSet assets. New checks cover native escape conversion/drawing, multiline/wrapped text, Unicode, interpreter isolation and one-shot consumption, busy/asset retries, input/face/speaker fallbacks, cancellation, termination/setup, invalid targets, map changes, oversized text, MZ registered-command callbacks, and MZ font mapping. The MZ adapter checks run inside MV; they do not establish full MZ runtime compatibility.
+The follow-up review found unsupported escape names were silently stripped while their parameters remained visible. Unsupported codes now preserve the entire original Show Text through normal dialogue. It also corrected the 256-line limit boundary and added early width/font-size limits. A rendered multiline bubble with color changes and an icon was visually inspected. The test runner now waits for NW shutdown before deleting scratch files.
+
+Remaining integration checks:
 
 - Playtest MBS and other zoom/camera plugins in a complete game. Anchoring now follows the actual character sprite transform, with legacy zoom scale as a fallback.
 - Very large messages/dense stacks shrink to fit the viewport and may be hard to read.

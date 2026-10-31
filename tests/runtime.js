@@ -276,6 +276,7 @@ try {
   var beforeWarning=diagnosticCalls;
   command("ShowChatBubble 999 1 missing");
   assert(diagnosticCalls===beforeWarning+1, "debug mode warns once on missing target");
+  runNativeInterpreterTests();
   finish();
 } catch (error) { finish(error); }
 }, finish);

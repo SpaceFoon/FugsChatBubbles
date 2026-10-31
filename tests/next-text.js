@@ -103,3 +103,74 @@ function runNextTextTests() {
     $gameMessage.isBusy=function () { return false; }; clear();
   }
 }
+
+function runNativeInterpreterTests() {
+  Fugs.ChatBubbles.clear();
+  ["update","stop","terminate","startEncounterEffect"].forEach(function (name) {
+    Scene_Map.prototype[name]=engineHooks[name];
+  });
+  Game_Map.prototype.setup=engineHooks.setup;
+  Game_Interpreter=NativeInterpreter;
+  $gameMessage=new NativeMessage();
+  ImageManager.requestFace=function () {};
+  SceneManager.isSceneChanging=function () { return false; };
+  PluginManager.parameters=function () {return {'Font Family':'GameFont','Bubble Offset X':'0'};};
+  window.eval(fs.readFileSync('FugsChatBubbles.js','utf8'));
+  function event(code, params) {return {code:code,indent:0,parameters:params || []};}
+  function list(text, after) {return [event(356,['ChatBubble next']),event(101,['',0,0,2]),
+    event(401,[text])].concat(after || [event(0)]);}
+  var interpreter=new Game_Interpreter();
+  interpreter.setup(list('First line',[event(401,['Second line']),event(101,['',0,0,2]),
+    event(401,['Normal afterwards']),event(0)]),1);
+  assert(interpreter.executeCommand() && interpreter._index===1,'native engine executes arm command');
+  assert(interpreter.executeCommand() && interpreter._index===4,'native engine advances past all converted lines');
+  assert(!$gameMessage.hasText() && interpreter._waitMode==='','native converted text leaves shared dialogue free');
+  assert(Fugs.Bubbles[1].length===1,'native current-event bubble target');
+  assert(!interpreter.executeCommand() && interpreter._index===6,'native subsequent Show Text blocks normally');
+  assert($gameMessage.allText()==='Normal afterwards' && interpreter._waitMode==='message','normal message content and wait preserved');
+  $gameMessage.clear(); Fugs.ChatBubbles.clear();
+  interpreter.setup(list('Pick one',[event(102,[['Yes','No'],1,0,2,0]),event(0)]),1);
+  interpreter.executeCommand(); interpreter.executeCommand();
+  assert($gameMessage.allText()==='Pick one' && $gameMessage.choices().length===2,'native fallback preserves prompt and choices');
+  $gameMessage.onChoice(1);
+  assert(interpreter._branch[0]===1 && interpreter._waitMode==='message','native choice callback and message wait preserved');
+  assert(!Fugs.Bubbles[1],'interactive fallback does not create bubble');
+  $gameMessage.clear();
+  interpreter.setup(list('Unsupported \\CUSTOM[2] effect'),1);
+  interpreter.executeCommand(); interpreter.executeCommand();
+  assert($gameMessage.allText()==='Unsupported \\CUSTOM[2] effect' && !Fugs.Bubbles[1],
+    'unknown text codes preserve entire original Show Text');
+  $gameMessage.clear();
+  interpreter.setup(list('Position \\PX[100] effect'),1);
+  interpreter.update();
+  assert($gameMessage.allText()==='Position \\PX[100] effect' && !Fugs.Bubbles[1],
+    'unsupported positioning uses normal dialogue instead of corrupting layout');
+  $gameMessage.clear();
+  interpreter.setup(list('One',[event(356,['ChatBubble next']),event(101,['',0,0,2]),
+    event(401,['Two']),event(0)]),1);
+  interpreter.update();
+  assert(!interpreter.isRunning() && !$gameMessage.isBusy() && Fugs.Bubbles[1].length===2,
+    'native update loop completes sequential nonblocking bubbles');
+  Fugs.ChatBubbles.clear();
+  var baseCount=Object.keys(PIXI.utils.BaseTextureCache).length;
+  var textureCount=Object.keys(PIXI.utils.TextureCache).length;
+  for (var i=0;i<40;i++) {
+    interpreter.setup(list('Hello \\N[1] \\C[2]red \\I[1]'),1);
+    interpreter.update(); Fugs.ChatBubbles.clear();
+  }
+  assert(Object.keys(PIXI.utils.BaseTextureCache).length===baseCount &&
+    Object.keys(PIXI.utils.TextureCache).length===textureCount,'formatted bubble repetitions release cached textures');
+  interpreter.setup(list('Hello \\N[1]!',[event(401,['You have \\V[2] \\G. \\C[2]Red \\C[0]\\I[1]']),event(0)]),1);
+  interpreter.update(); clock+=300; SceneManager._scene.update();
+  var renderer=new PIXI.CanvasRenderer(Graphics.width,Graphics.height,{transparent:true});
+  renderer.render(SceneManager._scene);
+  var pixels=renderer.view.getContext('2d').getImageData(0,0,Graphics.width,Graphics.height).data;
+  var visible=false;
+  for (var p=3;p<pixels.length;p+=4) {if (pixels[p]) {visible=true;break;}}
+  assert(visible,'native formatted bubble renders to actual scene pixels');
+  if (process.env.FUGS_BUBBLE_REVIEW_IMAGE) {
+    fs.writeFileSync(process.env.FUGS_BUBBLE_REVIEW_IMAGE,
+      Buffer.from(renderer.view.toDataURL('image/png').split(',')[1],'base64'));
+  }
+  renderer.destroy(true); Fugs.ChatBubbles.clear();
+}
