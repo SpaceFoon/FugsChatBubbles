@@ -105,7 +105,7 @@ function Invoke-TagRelease {
   param([string]$Tag, [string]$Version, [string]$Commit)
 
   if (Test-ReleaseExists -Tag $Tag) {
-    Write-Log "Release $Tag already exists; retrying its catalog sync."
+    Write-Log "Release $Tag already exists; retrying its plugin-directory update."
     & $releaseScript -Version $Version -SyncOnly 6>&1 | ForEach-Object { Write-Log ([string]$_) }
     return
   }
@@ -217,3 +217,4 @@ try {
 } finally {
   if ($lockStream) { $lockStream.Dispose() }
 }
+
