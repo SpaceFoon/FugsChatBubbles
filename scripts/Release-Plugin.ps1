@@ -13,7 +13,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $pluginRepo = 'SpaceFoon/FugsChatBubbles'
-$catalogRepo = 'SpaceFoon/fugs-plugins'
+$directoryRepo = 'SpaceFoon/RPG-Maker-MV-MZ-plugins'
 $pluginSlug = 'fugs-chat-bubbles'
 $shortName = 'FugsChatBubbles'
 $tag = "v$Version"
@@ -59,7 +59,7 @@ function Assert-GitHubAccess {
   }
 
   $login = Invoke-Gh @('api', 'user', '--jq', '.login')
-  foreach ($repository in @($pluginRepo, $catalogRepo)) {
+  foreach ($repository in @($pluginRepo, $directoryRepo)) {
     $canPush = Invoke-Gh @('api', "repos/$repository", '--jq', '.permissions.push')
     if ($canPush -ne 'true') {
       throw "The signed-in GitHub account ($login) needs write access to $repository."
@@ -114,9 +114,9 @@ function Publish-PluginRelease {
     throw "Tag $tag already points to another commit ($remoteTagCommit), not HEAD ($head)."
   }
 
-  # A release can exist after its catalog sync failed; use -SyncOnly to retry that step.
+  # A release can exist after its directory notification failed; use -SyncOnly to retry it.
   & gh release view $tag --repo $pluginRepo *> $null
-  if ($LASTEXITCODE -eq 0) { throw "Release $tag already exists. Use -SyncOnly to update its catalog listing." }
+  if ($LASTEXITCODE -eq 0) { throw "Release $tag already exists. Use -SyncOnly to notify the shared plugin directory." }
 
   New-Item -ItemType Directory -Path $scratchPath | Out-Null
   $script:createdScratch = $true
@@ -182,82 +182,31 @@ function Publish-PluginRelease {
     '--target', $head, '--title', "Fugs Chat Bubbles $tag", '--notes-file', $releaseNotes
   )
   Write-Host "Published $releaseUrl"
-  Sync-PluginDirectory -Login $script:githubLogin -ReleaseZipUrl $releaseZipUrl
+  Sync-PluginDirectory -ReleaseZipUrl $releaseZipUrl
 }
 
 function Sync-PluginDirectory {
-  param([string]$Login, [string]$ReleaseZipUrl)
+  param([string]$ReleaseZipUrl)
 
-  $branch = "plugin-release/$pluginSlug-$tag"
-  $openPrJson = Invoke-Gh @(
-    'pr', 'list', '--repo', $catalogRepo, '--state', 'open',
-    '--head', "${Login}:$branch", '--json', 'url'
-  )
-  $openPr = @($openPrJson | ConvertFrom-Json | Select-Object -First 1)[0].url
-  if ($openPr) {
-    Write-Host "Catalog pull request already open: $openPr"
-    Write-Host 'Merge it to update the directory listing.'
-    return
-  }
-
-  $remoteBranch = Invoke-Git $repoRoot @('ls-remote', '--heads', "https://github.com/$catalogRepo.git", "refs/heads/$branch")
-  $sitePath = Join-Path $scratchPath 'catalog'
-  $defaultBranch = Invoke-Gh @('repo', 'view', $catalogRepo, '--json', 'defaultBranchRef', '--jq', '.defaultBranchRef.name')
-  & git clone --depth 1 --branch $defaultBranch "https://github.com/$catalogRepo.git" $sitePath
-  if ($LASTEXITCODE -ne 0) { throw 'Could not clone the private catalog. Confirm that your GitHub account can access it.' }
-
-  $author = Invoke-Gh @('api', 'user', '--jq', '{login:.login,id:.id}') | ConvertFrom-Json
-  Invoke-Git $sitePath @('config', 'user.name', $author.login) | Out-Null
-  Invoke-Git $sitePath @('config', 'user.email', "$($author.id)+$($author.login)@users.noreply.github.com") | Out-Null
-
+  $eventPath = Join-Path $scratchPath 'plugin-directory-release-event.json'
   $env:PLUGIN_SLUG = $pluginSlug
-  $env:VERSION = $Version
-  $env:UPDATED_AT = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss.fffZ', [Globalization.CultureInfo]::InvariantCulture)
-  $env:RELEASE_ZIP_URL = $ReleaseZipUrl
+  $env:PLUGIN_NAME = 'Fugs Chat Bubbles'
   $env:SHORT_NAME = $shortName
-  Push-Location $sitePath
+  $env:VERSION = $Version
+  $env:TAG_NAME = $tag
+  $env:PLUGIN_REPOSITORY = $pluginRepo
+  $env:RELEASE_ZIP_URL = $ReleaseZipUrl
+  $env:PLUGIN_FILES = 'FugsChatBubbles.js' + [Environment]::NewLine + 'LICENSE' + [Environment]::NewLine + 'README.md'
   try {
-    & node (Join-Path $PSScriptRoot 'Sync-PluginDirectory.js')
-    if ($LASTEXITCODE -ne 0) { throw 'Catalog metadata did not match the expected listing format; no listing PR was pushed.' }
+    & node (Join-Path $PSScriptRoot 'Sync-PluginDirectory.js') $eventPath
+    if ($LASTEXITCODE -ne 0) { throw 'Could not prepare the plugin-directory release event.' }
   } finally {
-    Pop-Location
-    Remove-Item Env:PLUGIN_SLUG, Env:VERSION, Env:UPDATED_AT, Env:RELEASE_ZIP_URL, Env:SHORT_NAME -ErrorAction SilentlyContinue
+    Remove-Item Env:PLUGIN_SLUG, Env:PLUGIN_NAME, Env:SHORT_NAME, Env:VERSION, Env:TAG_NAME, Env:PLUGIN_REPOSITORY, Env:RELEASE_ZIP_URL, Env:PLUGIN_FILES -ErrorAction SilentlyContinue
   }
 
-  $catalogPaths = @('artifacts/rpg-plugins/src/data/plugins.ts')
-  if (Test-Path -LiteralPath (Join-Path $sitePath 'scripts/src/seed-plugins.ts')) {
-    $catalogPaths += 'scripts/src/seed-plugins.ts'
-  }
-  Invoke-Git $sitePath (@('add', '--') + $catalogPaths) | Out-Null
-  & git -C $sitePath diff --cached --quiet
-  $diffExitCode = $LASTEXITCODE
-  if ($diffExitCode -eq 0) {
-    Write-Host 'The plugin directory already has this version and download link.'
-    return
-  }
-  if ($diffExitCode -ne 1) { throw 'Could not check the staged catalog changes.' }
-  if ($remoteBranch) {
-    throw "Catalog branch $branch already exists but the default listing is not synced. Inspect or remove that stale branch before retrying."
-  }
-
-  Invoke-Git $sitePath @('checkout', '-b', $branch) | Out-Null
-  Invoke-Git $sitePath @('commit', '-m', "chore(catalog): sync $pluginSlug $tag") | Out-Null
-  Invoke-Git $sitePath @('push', '--set-upstream', 'origin', $branch) | Out-Null
-  $prBody = @(
-    '## Summary'
-    "- Update the $pluginSlug directory entry to **$tag**."
-    "- Set its download link to $ReleaseZipUrl."
-    ''
-    'Please merge this pull request to publish the updated directory listing.'
-  ) -join "`n"
-  $prBodyPath = Join-Path $scratchPath 'catalog-pr.md'
-  [IO.File]::WriteAllText($prBodyPath, $prBody, [Text.UTF8Encoding]::new($false))
-  $prUrl = Invoke-Gh @(
-    'pr', 'create', '--repo', $catalogRepo, '--head', "${Login}:$branch",
-    '--base', $defaultBranch, '--title', "chore(catalog): $pluginSlug $tag", '--body-file', $prBodyPath
-  )
-  Write-Host "Catalog pull request created: $prUrl"
-  Write-Host 'Merge it to update the public plugin directory listing.'
+  Invoke-Gh @('api', "repos/$directoryRepo/dispatches", '--input', $eventPath) | Out-Null
+  Write-Host "Queued $pluginSlug $tag for the shared plugin directory."
+  Write-Host 'The directory workflow updates plugins.json; the website reads it live.'
 }
 
 try {
@@ -280,7 +229,7 @@ try {
     $releaseZipUrl = Get-ExistingReleaseZipUrl
     New-Item -ItemType Directory -Path $scratchPath | Out-Null
     $createdScratch = $true
-    Sync-PluginDirectory -Login $script:githubLogin -ReleaseZipUrl $releaseZipUrl
+    Sync-PluginDirectory -ReleaseZipUrl $releaseZipUrl
   } else {
     Publish-PluginRelease
   }
@@ -301,3 +250,4 @@ if ($script:releaseFailure) {
   Write-Host "Release failed: $script:releaseFailure" -ForegroundColor Red
   throw $script:releaseFailure
 }
+
