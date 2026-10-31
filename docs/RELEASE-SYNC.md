@@ -16,10 +16,16 @@ Deployment evidence: Sitebase's `SITE4_DOMAIN`, `SITE4_REPO`, `SITE4_BRANCH`, `S
 
 `Release-Plugin.ps1 -SyncOnly` verifies the existing ZIP asset, clones the shared directory's default branch, and invokes `Sync-PluginDirectory.js` locally. The helper updates the Chat Bubbles entry, pins its JavaScript URL to the release tag, calculates SHA-256 from the tagged bytes, and refreshes the generated README table. It preserves maturity and editorial fields, refuses downgrades, and makes repeated matching updates a no-op. The PowerShell script pushes a normal commit with `[skip ci]`; it never dispatches an Actions event or opens a PR in the website repo. Push conflicts fail safely and the watcher retries.
 
-The shared manifest was prepared from the existing `codex/shared-plugin-directory-20261031` migration data. Its data publication is independent of the pending website consumer and game integration work. The pending directory updater workflow was not imported or invoked.
+The shared manifest was prepared from the existing `codex/shared-plugin-directory-20261031` migration data. Its data publication is independent of frontend deployment and game integration work. The pending directory updater workflow was not imported or invoked.
 
 ## Website integration boundary
 
-The local website checkout contains an uncommitted migration whose `src/data/plugins.ts` fetches the shared manifest from GitHub and whose `use-plugin-directory.ts` hook loads it for the pages. That code is not evidence of a live deployment. At verification, the production site reported the older build above. The currently served app must be rebuilt and deployed by Darren through Sitebase before that browser integration is live. Release sync updates the shared directory only; it does not deploy the website.
+The website consumer is complete and pushed to `SpaceFoon/fugs-plugins/master` at `88a63dc`, including the compiled frontend used by Sitebase. Its build marker identifies source commit `91981ee`. The home catalog, detail pages, and forum picker fetch the shared JSON; the parser validates entries, requests time out after 15 seconds, and unavailable states offer Retry. The MultiTrack playbook remains local editorial content.
+
+Verification covered the real manifest, search and engine filters, desktop and narrow-screen rendering, an unknown plugin, the playbook, and a tagged download with a matching SHA-256. Controlled localhost responses tested HTTP and malformed-data failures, recovery, changed metadata without rebuilding, and the forum picker. Directory tests, workspace typechecking, and the production build passed.
+
+These checks do not establish live deployment. Darren deploys the committed frontend through Sitebase; after that activation, directory metadata updates require no frontend rebuild (subject to GitHub CDN propagation). Release sync itself does not access or deploy the VPS.
 
 The earlier PR #5 in `SpaceFoon/fugs-plugins` updated the website's old static catalog data. It was not a shared-directory update. Future Chat Bubbles releases use the shared JSON directly.
+
+*Last updated: 2026-10-31 — record the verified, pushed website consumer and retain the owner deployment boundary.*

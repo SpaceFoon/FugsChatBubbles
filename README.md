@@ -132,7 +132,7 @@ To retry an existing release without rebuilding it:
 
     powershell -ExecutionPolicy Bypass -File .\scripts\Release-Plugin.ps1 -Version 1.0.2 -SyncOnly
 
-The plugin directory and website deployment are separate. [`SpaceFoon/sitebase`](https://github.com/SpaceFoon/sitebase) deploys `fugsplugins.com` using `SpaceFoon/fugs-plugins` for the main site and `SpaceFoon/fugg-audio-plugin-site` for `/FugsAudioEx`. The website's integration with the shared manifest is pending; a directory push does not itself deploy or update the currently served website. See [the verified deployment and sync details](docs/RELEASE-SYNC.md).
+The plugin directory and website deployment are separate. [`SpaceFoon/sitebase`](https://github.com/SpaceFoon/sitebase) deploys `fugsplugins.com` using `SpaceFoon/fugs-plugins` for the main site and `SpaceFoon/fugg-audio-plugin-site` for `/FugsAudioEx`. The website reader and compiled frontend are published in `fugs-plugins/master` at `88a63dc`, ready for Darren's VPS deployment. After that frontend is deployed, it fetches shared metadata on page open or Retry without another website build; GitHub CDN propagation can delay updates. A directory push does not deploy the website itself. See [the verified deployment and sync details](docs/RELEASE-SYNC.md).
 
 Remove the local task with:
 
