@@ -125,7 +125,7 @@ function Publish-PluginRelease {
 
   # Package committed bytes so Windows autocrlf does not alter the tagged plugin.
   $sourceArchive = Join-Path $scratchPath 'source.zip'
-  Invoke-Git $repoRoot @('archive', '--format=zip', "--prefix=$shortName/", "--output=$sourceArchive", $head, '--', 'FugsChatBubbles.js', 'LICENSE', 'README.md') | Out-Null
+  Invoke-Git $repoRoot @('-c', 'core.autocrlf=false', '-c', 'core.eol=lf', 'archive', '--format=zip', "--prefix=$shortName/", "--output=$sourceArchive", $head, '--', 'FugsChatBubbles.js', 'LICENSE', 'README.md') | Out-Null
   Add-Type -AssemblyName System.IO.Compression.FileSystem
   [IO.Compression.ZipFile]::ExtractToDirectory($sourceArchive, $scratchPath)
 
