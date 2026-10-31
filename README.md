@@ -118,24 +118,31 @@ For script calls, `Fugs.ChatBubbles.show(eventId, durationMs, message)` shows a 
 
 This section is for maintainers. It explains how a release gets from this repository into the Fugs Plugins directory.
 
-Releases run from your PC with PowerShell, Git, Node.js, and the [GitHub CLI](https://cli.github.com/). Sign in once with the browser-based GitHub CLI flow:
+Release automation runs on your Windows PC. It does not use GitHub Actions or any GitHub runner. The PC checks GitHub for pushed version tags, then builds the ZIP and publishes the release and catalog pull request from a local checkout.
 
-    gh auth login --hostname github.com --git-protocol https --web
+Install it once from PowerShell:
 
-The account must have write access to both this repository and the private [`SpaceFoon/fugs-plugins`](https://github.com/SpaceFoon/fugs-plugins) repository. The release script configures Git to use the local GitHub CLI login; it does not need a repository Actions secret, a personal access token copied into settings, or a GitHub-hosted runner.
+    powershell -ExecutionPolicy Bypass -File .\scripts\Install-LocalReleaseAutomation.ps1
 
-Commit and push the release source first. Set `@version` in `FugsChatBubbles.js` to the intended release version and add its entry to `CHANGELOG.md`. Then run:
+The installer signs in through the browser only if the saved GitHub CLI login is missing or invalid, checks that your account can write to this repository and the private [`SpaceFoon/fugs-plugins`](https://github.com/SpaceFoon/fugs-plugins) repository, then registers a Task Scheduler job for the current Windows account. Git uses the same locally saved login. No account token is copied into the repository or an Actions secret.
 
-    git push origin main
-    powershell -ExecutionPolicy Bypass -File .\scripts\Release-Plugin.ps1 -Version 1.1.0
+While you are signed in and the PC is on, the watcher checks for tags every five minutes. On first start it retries the catalog sync for the latest published release, then records existing tags so old releases are not republished. After that, push a version tag to start a release:
 
-The script checks that the working tree is clean, the current commit is pushed, the requested version matches the plugin header, and the account can write to both repositories. It creates `release-dist/FugsChatBubbles-v1.1.0.zip`, publishes the GitHub release, updates the private directory's metadata on a branch, and opens a pull request. Review and merge that pull request for the public directory listing to change.
+    git push origin v1.1.0
 
-To retry only the directory update for an existing release whose catalog sync failed, run:
+The PC checks out that exact tag locally, verifies the plugin version, creates `release-dist/FugsChatBubbles-v1.1.0.zip`, uploads it as a GitHub release, and opens a pull request updating the private plugin directory. Merge the pull request for the public directory listing to change. If the PC is off, it catches up when the watcher next runs.
+
+The release and directory changes are made through the GitHub CLI using the Windows account's saved login. GitHub still needs to authorize publishing and private-repository writes, so a fresh sign-in is needed if that saved login is revoked or becomes invalid; it is not requested for every release.
+
+To manually retry only the directory update for an existing release, run:
 
     powershell -ExecutionPolicy Bypass -File .\scripts\Release-Plugin.ps1 -Version 1.0.2 -SyncOnly
 
-This checks that the existing release ZIP is present, then makes or reports the catalog pull request without rebuilding or republishing the release. Pushing a tag alone does not run a release; use the local script.
+To remove the local watcher task, run:
+
+    powershell -ExecutionPolicy Bypass -File .\scripts\Uninstall-LocalReleaseAutomation.ps1
+
+This removes only the scheduled task. Local ZIPs, log, and watcher state are kept. Manual one-shot releases are also available with `scripts/Release-Plugin.ps1`.
 
 ## Verification
 

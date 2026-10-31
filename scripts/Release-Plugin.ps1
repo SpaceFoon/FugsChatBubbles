@@ -4,7 +4,11 @@ param(
   [ValidatePattern('^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$')]
   [string]$Version,
 
-  [switch]$SyncOnly
+  [switch]$SyncOnly,
+
+  [string]$SourceDirectory,
+
+  [string]$OutputDirectory
 )
 
 $ErrorActionPreference = 'Stop'
@@ -13,9 +17,10 @@ $catalogRepo = 'SpaceFoon/fugs-plugins'
 $pluginSlug = 'fugs-chat-bubbles'
 $shortName = 'FugsChatBubbles'
 $tag = "v$Version"
-$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$scriptRepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$repoRoot = if ($SourceDirectory) { (Resolve-Path -LiteralPath $SourceDirectory).Path } else { $scriptRepoRoot }
 $zipName = "$shortName-$tag.zip"
-$outputDirectory = Join-Path $repoRoot 'release-dist'
+$outputDirectory = if ($OutputDirectory) { [IO.Path]::GetFullPath($OutputDirectory) } else { Join-Path $scriptRepoRoot 'release-dist' }
 $zipPath = Join-Path $outputDirectory $zipName
 $scratchPath = Join-Path ([IO.Path]::GetTempPath()) ("FugsChatBubbles-release-" + [guid]::NewGuid().ToString('N'))
 $createdScratch = $false
