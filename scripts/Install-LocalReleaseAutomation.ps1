@@ -6,7 +6,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $pluginRepo = 'SpaceFoon/FugsChatBubbles'
-$catalogRepo = 'SpaceFoon/fugs-plugins'
+$directoryRepo = 'SpaceFoon/RPG-Maker-MV-MZ-plugins'
 $taskName = 'FugsChatBubblesLocalReleaseWatcher'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $watcherPath = Join-Path $PSScriptRoot 'Watch-PluginReleases.ps1'
@@ -32,7 +32,7 @@ if (!$isAuthenticated) {
 
 $login = (& gh api user --jq '.login') -join ''
 if ($LASTEXITCODE -ne 0) { throw 'Could not read the signed-in GitHub account.' }
-foreach ($repository in @($pluginRepo, $catalogRepo)) {
+foreach ($repository in @($pluginRepo, $directoryRepo)) {
   $canPush = (& gh api "repos/$repository" --jq '.permissions.push') -join ''
   if ($LASTEXITCODE -ne 0 -or $canPush.Trim() -ne 'true') {
     throw "GitHub account $login needs write access to $repository before local releases can run."
@@ -71,3 +71,4 @@ Start-ScheduledTask -TaskName $taskName
 Write-Host "Installed and started $taskName for $currentUser."
 Write-Host 'The PC and this Windows account must be running for the watcher to process pushed tags.'
 Write-Host "Log: $(Join-Path $repoRoot '.local-release-automation/watcher.log')"
+
