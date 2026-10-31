@@ -89,11 +89,11 @@ function Get-RemoteTagCommit {
   if (!$tagRefs) { return '' }
 
   $lines = @($tagRefs -split "`r?`n")
-  $peeled = @($lines | Where-Object { $_.EndsWith(" refs/tags/$tag^{}") } | Select-Object -First 1)
+  $peeled = @($lines | Where-Object { ($_ -split '\s+', 2)[1] -eq "refs/tags/$tag^{}" } | Select-Object -First 1)
   $selected = if ($peeled.Count -gt 0) {
     $peeled[0]
   } else {
-    @($lines | Where-Object { $_.EndsWith(" refs/tags/$tag") } | Select-Object -First 1)[0]
+    @($lines | Where-Object { ($_ -split '\s+', 2)[1] -eq "refs/tags/$tag" } | Select-Object -First 1)[0]
   }
   if (!$selected) { throw "Could not read the existing remote tag $tag." }
   return ($selected -split '\s+')[0]
@@ -189,10 +189,11 @@ function Sync-PluginDirectory {
   param([string]$Login, [string]$ReleaseZipUrl)
 
   $branch = "plugin-release/$pluginSlug-$tag"
-  $openPr = Invoke-Gh @(
+  $openPrJson = Invoke-Gh @(
     'pr', 'list', '--repo', $catalogRepo, '--state', 'open',
-    '--head', "${Login}:$branch", '--json', 'url', '--jq', '.[0].url // ""'
+    '--head', "${Login}:$branch", '--json', 'url'
   )
+  $openPr = @($openPrJson | ConvertFrom-Json | Select-Object -First 1)[0].url
   if ($openPr) {
     Write-Host "Catalog pull request already open: $openPr"
     Write-Host 'Merge it to update the directory listing.'
@@ -249,9 +250,11 @@ function Sync-PluginDirectory {
     ''
     'Please merge this pull request to publish the updated directory listing.'
   ) -join "`n"
+  $prBodyPath = Join-Path $scratchPath 'catalog-pr.md'
+  [IO.File]::WriteAllText($prBodyPath, $prBody, [Text.UTF8Encoding]::new($false))
   $prUrl = Invoke-Gh @(
     'pr', 'create', '--repo', $catalogRepo, '--head', "${Login}:$branch",
-    '--base', $defaultBranch, '--title', "chore(catalog): $pluginSlug $tag", '--body', $prBody
+    '--base', $defaultBranch, '--title', "chore(catalog): $pluginSlug $tag", '--body-file', $prBodyPath
   )
   Write-Host "Catalog pull request created: $prUrl"
   Write-Host 'Merge it to update the public plugin directory listing.'

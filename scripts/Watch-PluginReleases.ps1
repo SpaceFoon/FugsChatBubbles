@@ -106,7 +106,7 @@ function Invoke-TagRelease {
 
   if (Test-ReleaseExists -Tag $Tag) {
     Write-Log "Release $Tag already exists; retrying its catalog sync."
-    & $releaseScript -Version $Version -SyncOnly
+    & $releaseScript -Version $Version -SyncOnly 6>&1 | ForEach-Object { Write-Log ([string]$_) }
     return
   }
 
@@ -119,7 +119,7 @@ function Invoke-TagRelease {
       throw "Tag $Tag changed while the release was being prepared."
     }
     Write-Log "Publishing $Tag from commit $Commit."
-    & $releaseScript -Version $Version -SourceDirectory $clonePath -OutputDirectory $releaseOutput
+    & $releaseScript -Version $Version -SourceDirectory $clonePath -OutputDirectory $releaseOutput 6>&1 | ForEach-Object { Write-Log ([string]$_) }
   } finally {
     if (Test-Path -LiteralPath $clonePath) {
       $resolved = [IO.Path]::GetFullPath($clonePath)
@@ -147,7 +147,7 @@ function Initialize-WatcherState {
   $latestVersion = Get-LatestPublishedReleaseVersion
   if ($latestVersion) {
     Write-Log "First run: reconciling the latest published release v$latestVersion with the plugin directory."
-    & $releaseScript -Version $latestVersion -SyncOnly
+    & $releaseScript -Version $latestVersion -SyncOnly 6>&1 | ForEach-Object { Write-Log ([string]$_) }
   }
 
   $remoteTags = Get-RemoteTags

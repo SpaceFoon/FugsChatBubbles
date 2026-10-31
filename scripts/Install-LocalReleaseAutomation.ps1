@@ -52,6 +52,18 @@ $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -MultipleInstances 
 
 if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) {
   Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+  $watcherLockPath = Join-Path $repoRoot '.local-release-automation/watcher.lock'
+  $stopDeadline = (Get-Date).AddSeconds(15)
+  while (Test-Path -LiteralPath $watcherLockPath) {
+    try {
+      $watcherLock = [IO.File]::Open($watcherLockPath, [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+      $watcherLock.Dispose()
+      break
+    } catch {
+      if ((Get-Date) -ge $stopDeadline) { throw 'The previous watcher has not stopped. Retry installation after it exits.' }
+      Start-Sleep -Milliseconds 200
+    }
+  }
 }
 Register-ScheduledTask -TaskName $taskName -Description 'Polls pushed Fugs Chat Bubbles version tags and publishes releases on this PC.' -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
 Start-ScheduledTask -TaskName $taskName

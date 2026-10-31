@@ -128,6 +128,8 @@ The installer signs in through the browser only if the saved GitHub CLI login is
 
 While you are signed in and the PC is on, the watcher checks for tags every five minutes. On first start it retries the catalog sync for the latest published release, then records existing tags so old releases are not republished. After that, push a version tag to start a release:
 
+The task uses the installing Windows user's saved credentials. Progress, release output, and retry errors are recorded in `.local-release-automation/watcher.log`.
+
     git push origin v1.1.0
 
 The PC checks out that exact tag locally, verifies the plugin version, creates `release-dist/FugsChatBubbles-v1.1.0.zip`, uploads it as a GitHub release, and opens a pull request updating the private plugin directory. Merge the pull request for the public directory listing to change. If the PC is off, it catches up when the watcher next runs.
