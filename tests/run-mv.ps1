@@ -19,10 +19,19 @@ try {
     Set-Content -LiteralPath (Join-Path $scratchPath 'package.json')
   $resultPath = Join-Path $scratchPath 'result.json'
   Copy-Item -LiteralPath (Join-Path $EnginePath 'NewData\fonts\mplus-1m-regular.ttf') -Destination (Join-Path $scratchPath 'gamefont.ttf')
+  foreach ($asset in @('Window.png','IconSet.png')) {
+    Copy-Item -LiteralPath (Join-Path $EnginePath ('NewData\img\system\' + $asset)) -Destination $scratchPath
+  }
   $html = '<!doctype html><meta charset="utf-8"><style>@font-face{font-family:GameFont;src:url(gamefont.ttf)}</style><script>window.testResultPath=' +
     (ConvertTo-Json -Compress $resultPath) + ';</script>'
-  foreach ($scriptPath in @($pixiPath, (Join-Path $PSScriptRoot 'setup.js'),
-      (Join-Path $repoPath 'FugsChatBubbles.js'), (Join-Path $PSScriptRoot 'runtime.js'))) {
+  foreach ($scriptPath in @($pixiPath,
+      (Join-Path $EnginePath 'NewData\js\libs\pixi-tilemap.js'),
+      (Join-Path $EnginePath 'NewData\js\libs\pixi-picture.js'),
+      (Join-Path $EnginePath 'NewData\js\rpg_core.js'),
+      (Join-Path $EnginePath 'NewData\js\rpg_windows.js'),
+      (Join-Path $PSScriptRoot 'setup.js'),
+      (Join-Path $repoPath 'FugsChatBubbles.js'),
+      (Join-Path $PSScriptRoot 'next-text.js'), (Join-Path $PSScriptRoot 'runtime.js'))) {
     Copy-Item -LiteralPath $scriptPath -Destination $scratchPath
     $html += '<script src="' + (Split-Path -Leaf $scriptPath) + '"></script>'
   }

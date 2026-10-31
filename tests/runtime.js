@@ -1,4 +1,4 @@
-document.fonts.load("24px GameFont").then(function () {
+Promise.all([document.fonts.load("24px GameFont"),textAssetsReady]).then(function () {
 try {
   var interpreter = new Game_Interpreter();
   function command(text) {
@@ -8,6 +8,7 @@ try {
   function latest(id) { return Fugs.Bubbles[id][0]; }
   function textOf(bubble) { return bubble.container.children[1]; }
   function advance(ms) { clock += ms; SceneManager._scene.update(); }
+  runNextTextTests();
   function checkInk(text) {
     var canvas = text.canvas;
     var pixels = text.context.getImageData(0, 0, canvas.width, canvas.height).data;
@@ -194,6 +195,9 @@ try {
     });
     Game_Map.prototype.setup=engineHooks.setup;
     Game_Interpreter.prototype.pluginCommand=engineHooks.pluginCommand;
+    Game_Interpreter.prototype.command101=engineHooks.command101;
+    Game_Interpreter.prototype.setup=engineHooks.interpreterSetup;
+    Game_Interpreter.prototype.terminate=engineHooks.interpreterTerminate;
     PluginManager.parameters=function () { return Object.assign({},clean ? {} : defaults,overrides); };
     window.eval(fs.readFileSync("FugsChatBubbles.js","utf8"));
   }

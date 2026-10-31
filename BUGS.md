@@ -26,6 +26,11 @@ Verification: 119 assertions passed using the installed MV Chromium 65.0.3325.14
 
 Remaining integration checks:
 
+Version 1.1.0 verification: 156 assertions pass in the same MV runtime, now also loading real engine Bitmap/Window_Base code and Window/IconSet assets. New checks cover native escape conversion/drawing, multiline/wrapped text, Unicode, interpreter isolation and one-shot consumption, busy/asset retries, input/face/speaker fallbacks, cancellation, termination/setup, invalid targets, map changes, oversized text, MZ registered-command callbacks, and MZ font mapping. The MZ adapter checks run inside MV; they do not establish full MZ runtime compatibility.
+
 - Playtest MBS and other zoom/camera plugins in a complete game. Anchoring now follows the actual character sprite transform, with legacy zoom scale as a fallback.
 - Very large messages/dense stacks shrink to fit the viewport and may be hard to read.
-- Fonts must be loaded before showing a bubble. Escape codes and battle targets remain outside the implemented feature set.
+- Fonts must be loaded before showing a bubble. Battle targets remain outside the implemented feature set.
+- Version 1.1.0 adds escape codes for converted Show Text; legacy direct text remains plain text. Rich text uses the first theme text color instead of a gradient. See README for fallback behavior and limits.
+- MZ's registered commands and parameter adapter are covered in the MV harness; a full MZ runtime playtest is outstanding.
+- Third-party Window_Message-only effects and custom escape drawing/positioning need individual integration. They are not guaranteed by the new conversion path.

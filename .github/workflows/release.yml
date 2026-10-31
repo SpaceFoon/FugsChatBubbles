@@ -54,6 +54,8 @@ jobs:
         README.md
       install_notes: |
         Enable FugsChatBubbles in Plugin Manager.
-        Use plugin command ShowChatBubble [event][duration][message].
+        MV: use ChatBubble next event:current duration:5, then Show Text.
+        MZ: select Next Show Text as Bubble, then add Show Text.
+        See README.md for text codes, normal-dialogue fallbacks, and compatibility limits.
     secrets:
       FUGS_SITE_SYNC_TOKEN: ${{ secrets.FUGS_SITE_SYNC_TOKEN }}

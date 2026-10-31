@@ -1,6 +1,8 @@
 # Fugs Chatter and Speech Bubbles
 
-**Version:** 1.0.2 · **Engine:** RPG Maker MV · **License:** [GNU GPL-3.0](LICENSE)
+**Version:** 1.1.0 · **Engines:** RPG Maker MV / MZ · **License:** [GNU GPL-3.0](LICENSE)
+
+MV runtime verified. MZ command adapters are tested; a complete MZ runtime playtest is still required.
 
 Map speech bubbles follow events, the player, or followers. Messages stack, bounce in, and fade out. Text and backgrounds support themes and gradients.
 
@@ -11,7 +13,31 @@ Copy FugsChatBubbles.js to your game's js/plugins directory, add it in Plugin Ma
 - [Releases](https://github.com/SpaceFoon/FugsChatBubbles/releases)
 - [Source](https://github.com/SpaceFoon/FugsChatBubbles/blob/main/FugsChatBubbles.js)
 
-## Show a bubble
+## Convert the next Show Text (recommended)
+
+In MV, add this Plugin Command immediately before a normal Show Text:
+
+    ChatBubble next event:current duration:5
+
+Then write the dialogue in Show Text's normal multiline editor. It appears as one nonblocking bubble, and the event continues immediately. Only that one Show Text command is converted; later Show Text commands are normal unless marked again.
+
+In MZ, select **FugsChatBubbles → Next Show Text as Bubble** in the plugin command picker. Set the target and duration, then add Show Text. Use **Cancel Next Text Conversion** to cancel a pending marker. MV's cancellation command is `ChatBubble cancel`.
+
+Targets: `current` means the event running the command (player for a common event without a map event), `0` means player, positive IDs mean map events, and negative IDs mean followers. Duration is seconds, including the fade.
+
+The marker belongs to that event interpreter, not other parallel events or a called common event's child interpreter. It resets after use, interpreter termination/setup, or discovery of a changed map. Put it immediately before the intended Show Text, especially in branches and loops.
+
+### Text codes and presentation
+
+Converted Show Text uses the game's `Window_Base.convertEscapeCharacters` and inline escape handlers. Supported stock codes include `\V[n]`, `\N[n]`, `\P[n]`, `\G`, `\C[n]`, `\I[n]`, `\{`, and `\}`. Write a single backslash in the editor. Use `\\` for a literal backslash. Explicit newlines are preserved; text wraps and lines are centered. MZ's `GameFont` setting resolves to the game's main font.
+
+Converted text uses the configured font and first theme text color, then honors inline color/font changes. It does not use the legacy renderer's text gradient. Background gradients, opacity, borders, placement, stacking, and lifetime still apply.
+
+Bubbles appear instantly and do not accept input. Message waits, pauses, fast-text controls, gold-window commands, and final input suppression (`\.`, `\|`, `\!`, `\>`, `\<`, `\$`, `\^`) are ignored. Faces, MZ speaker names, and Show Text followed immediately by choices, number input, or item selection keep the entire command as normal dialogue, consuming the marker. Missing targets, empty text, or rendering failures also fall back to normal Show Text instead of dropping dialogue. Text is limited to 16,384 converted characters, 256 wrapped lines, and a 4-megapixel bitmap; larger text falls back to normal dialogue.
+
+Plugins extending `Window_Base` conversion or inline font/color handling can participate. Plugins requiring `Window_Message`, custom drawing, text positioning, animation, or additional window state need individual integration testing. The plugin does not instantiate another `Window_Message` or replace the game's shared message state.
+
+## Legacy direct text commands (MV)
 
 Event IDs: positive = map event, 0 = player, -1 = first follower, -2 = second follower.
 
@@ -84,9 +110,9 @@ Visible glyph bounds are centered in the background, including short lowercase m
 
 Bubbles and stacks fit within the screen. Large messages or dense stacks shrink to fit, which can reduce readability. Bubbles clear on encounters, transfers, and when leaving the map, including opening a menu. They are map-only and do not persist through saving/loading.
 
-When a rendered character sprite is available, its actual transformed head position anchors the bubble, including camera translation, scale, and shake. The legacy $gameMap.zoom.x/y coordinates are used only as a fallback. A complete game with MBS or other camera plugins still needs an integration check. RPG Maker escape codes and battle-character targets are not implemented.
+When a rendered character sprite is available, its actual transformed head position anchors the bubble, including camera translation, scale, and shake. The legacy $gameMap.zoom.x/y coordinates are used only as a fallback. A complete game with MBS or other camera plugins still needs an integration check. Battle-character targets are not implemented.
 
-For script calls, Fugs.ChatBubbles.show(eventId, durationMs, message) shows a map bubble and Fugs.ChatBubbles.clear() removes all bubbles.
+For script calls, `Fugs.ChatBubbles.show(eventId, durationMs, message)` shows a map bubble and `Fugs.ChatBubbles.clear()` removes all bubbles. An optional fourth argument `true` uses the formatted Show Text renderer; callers must ensure the Window and IconSet system images are loaded first. The original direct commands and default script calls retain their plain-text Pixi renderer.
 
 ## Verification
 
@@ -95,7 +121,7 @@ Run the regression harness with an installed MV SDK runtime:
     powershell -ExecutionPolicy Bypass -File tests/run-mv.ps1
     powershell -ExecutionPolicy Bypass -File tests/run-mv.ps1 -EnginePath "C:\path\to\RPG Maker MV"
 
-The harness uses the installation's Chromium, Pixi, and GameFont with small game-state stubs. It checks real text/canvas geometry, commands, timing, stacking, and resource cleanup. Scratch files are removed afterward. It does not replace playtesting a complete game with other plugins.
+The harness uses the installation's Chromium, Pixi, GameFont, Bitmap, Window_Base, windowskin, and icons with small game-state stubs. It checks text conversion, interpreter isolation/fallback, the MZ registered-command callbacks and parameter adapter, real text/canvas geometry, commands, timing, stacking, and resource cleanup. Scratch files are removed afterward. This is an MV runtime test, not a full MZ engine or third-party message-plugin playtest.
 
 See [CHANGELOG.md](CHANGELOG.md) and [BUGS.md](BUGS.md) for the fix record.
 

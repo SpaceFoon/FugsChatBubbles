@@ -3,11 +3,30 @@
 //=============================================================================
 
 /*:
- * @target MV
- * @plugindesc v1.0.2 Speech bubbles that follow events and stack.
- * @version 1.0.2
+ * @target MZ
+ * @plugindesc v1.1.0 MV/MZ speech bubbles, including the next Show Text.
+ * @version 1.1.0
  *
  * @author Fugahagen
+ *
+ * @command nextText
+ * @text Next Show Text as Bubble
+ * @desc Convert the next Show Text in this interpreter to a nonblocking map bubble.
+ * @arg target
+ * @text Target event ID
+ * @desc current, 0 for player, positive event ID, or negative follower ID.
+ * @type string
+ * @default current
+ * @arg duration
+ * @text Duration (seconds)
+ * @type number
+ * @decimals 2
+ * @min 0.01
+ * @default 5
+ *
+ * @command cancelNextText
+ * @text Cancel Next Text Conversion
+ * @desc Leave the next Show Text as normal dialogue.
  *
  * @param Debug Mode
  * @desc Enable debug logging and testing features
@@ -192,8 +211,7 @@
  * - Add remove all bubbles plugin command
  * - Add per-event style overrides
  * - Stacking bubbles from other events ie actors talking
- * - Add text code support. Hook into rmmv window system
- * - Port to MZ.
+ * - Expand third-party message-plugin compatibility
  * - Make work for battles?
  * - Add arrows
  * - Per-bubble placement options
@@ -214,6 +232,9 @@
  * ============================================================================
  *
  * ShowChatBubble eventId seconds message
+ * ChatBubble next event:current duration:5
+ * Follow with a normal Show Text command. ChatBubble cancel cancels the marker.
+ * MZ: select Next Show Text as Bubble in the plugin command picker.
  * ShowChatBubble seconds message (current event, otherwise player)
  * ShowChatBubble message (5 seconds)
  * For numeric text: ShowChatBubble event:0 duration:5 -- 2 enemies left
@@ -248,6 +269,7 @@
  * Version History
  * ============================================================================
  *
+ * 1.1.0 - [10/31/2026]: Next Show Text conversion, native text codes, MZ command/font adapters.
  * 1.0.2 - [10/31/2026]: Camera anchoring, target visibility, color validation, and dialogue fixes.
  * 1.0.1 - [10/31/2026]: Runtime, styling, layout, lifetime, and cleanup fixes.
  * 1.0 - [3/30/2024]: Initial release
@@ -389,7 +411,8 @@
 
 
   var settings = {
-    theme: params.Theme || "Dark", fontFamily: params["Font Family"] || "GameFont",
+    theme: params.Theme || "Dark", fontFamily: params["Font Family"] ||
+      (typeof Utils !== "undefined" && Utils.RPGMAKER_NAME === "MZ" ? "rmmz-mainfont" : "GameFont"),
     fontSize: number(params["Font Size"], 28, 1, 256),
     fontColors: colors(params["Font Colors"], "#FFFFFF"),
     fontAlpha: number(params["Font Alpha"], 1, 0, 1),
@@ -479,12 +502,134 @@
     sprite.anchor.set(0.5);
     return sprite;
   }
+  // Use the game's conversion and escape handlers without creating another
+  // Window_Message or touching $gameMessage. Layout is local to each bubble.
+  function richText(message, appearance) {
+    var bitmap = new Bitmap(1, 1);
+    var win = Object.create(Window_Base.prototype);
+    Object.defineProperty(win, "contents", {value: bitmap});
+    Object.defineProperty(win, "windowskin", {value: ImageManager.loadSystem("Window")});
+    var properties = ["fontFace", "fontSize", "fontBold", "fontItalic",
+      "textColor", "outlineColor", "outlineWidth", "paintOpacity"];
+    var rows = [], row = {runs: [], width: 0, height: settings.lineHeight};
+    var limit = Math.max(1, Math.min(settings.wrapWidth,
+      Graphics.width-settings.widthMargin-settings.padding*2-settings.borderWidth*2-8));
+    function snapshot() {
+      var result = {};
+      properties.forEach(function (key) { result[key] = bitmap[key]; });
+      return result;
+    }
+    function nextRow() {
+      rows.push(row);
+      row = {runs: [], width: 0, height: Math.max(settings.lineHeight, bitmap.fontSize+8)};
+      if (rows.length > 256) throw new Error("Bubble exceeds 256 lines.");
+    }
+    function add(run) {
+      var previous = row.runs[row.runs.length-1];
+      var merge = run.text !== undefined && previous && previous.text !== undefined &&
+        properties.every(function (key) { return previous.style[key] === run.style[key]; });
+      if (merge) run.width = bitmap.measureTextWidth(previous.text+run.text)-previous.width;
+      if (settings.wrap && row.width && row.width+run.width > limit) nextRow();
+      if (merge && row.runs[row.runs.length-1] === previous) {
+        previous.text += run.text; previous.width += run.width;
+      } else {
+        if (run.text !== undefined) run.width = bitmap.measureTextWidth(run.text);
+        row.runs.push(run);
+      }
+      row.width += run.width;
+      row.height = Math.max(row.height, run.height);
+    }
+    win.processDrawIcon = function (index, state) {
+      var size = typeof ImageManager.iconWidth === "number" ? ImageManager.iconWidth : Window_Base._iconWidth;
+      add({icon: index, width: size+4, height: size+4});
+      state.x = row.width;
+    };
+    try {
+      bitmap.fontFace = fontFamily(); bitmap.fontSize = settings.fontSize;
+      bitmap.textColor = cssColor(appearance.text[0]); bitmap.outlineWidth = 0;
+      var state = {text: win.convertEscapeCharacters(String(message)), index: 0, x: 0, y: 0, left: 0};
+      if (state.text.length > 16384) throw new Error("Bubble exceeds 16384 characters.");
+      while (state.index < state.text.length) {
+        var c = state.text[state.index++];
+        if (c === "\n" || c === "\f") nextRow();
+        else if (c === "\x1b") {
+          var match = /^[\$\.\|\^!><\{\}\\]|^[A-Z]+/i.exec(state.text.slice(state.index));
+          if (match) {
+            state.index += match[0].length;
+            state.x = row.width; state.y = 0;
+            // Message waits/input have no meaning for simultaneous instant bubbles.
+            if (!/^[\$\.\|\^!><]$/.test(match[0])) {
+              win.processEscapeCharacter(match[0].toUpperCase(), state);
+            }
+          }
+        } else {
+          // Keep supplementary Unicode characters and combining marks together.
+          if (/[\uD800-\uDBFF]/.test(c) && /[\uDC00-\uDFFF]/.test(state.text[state.index] || "")) {
+            c += state.text[state.index++];
+          }
+          while (state.index < state.text.length &&
+              /[\u0300-\u036f\u1ab0-\u1aff\u1dc0-\u1dff\u20d0-\u20ff\ufe00-\ufe0f\ufe20-\ufe2f]/.test(state.text[state.index])) {
+            c += state.text[state.index++];
+          }
+          // Keep words together; split words only when they exceed the line width.
+          if (settings.wrap && !/\s/.test(c) &&
+              (state.index === 1 || /[\s\]]/.test(state.text[state.index-2]))) {
+            var word = c + (/^[^\s\x1b]*/.exec(state.text.slice(state.index)) || [""])[0];
+            if (row.width && bitmap.measureTextWidth(word) <= limit &&
+                row.width+bitmap.measureTextWidth(word) > limit) nextRow();
+          }
+          add({text: c, width: bitmap.measureTextWidth(c), height: bitmap.fontSize+8, style: snapshot()});
+        }
+      }
+      rows.push(row);
+      if (!rows.some(function (r) { return r.runs.some(function (run) {
+        return run.icon !== undefined || /\S/.test(run.text || "");
+      }); })) throw new Error("Bubble has no visible text.");
+      var width = Math.ceil(rows.reduce(function (w, r) { return Math.max(w, r.width); }, 1))+8;
+      var height = Math.ceil(rows.reduce(function (h, r) { return h+r.height; }, 0))+8;
+      if (width > 8192 || height > 8192 || width*height > 4194304) {
+        throw new Error("Bubble text exceeds safe bitmap size.");
+      }
+      bitmap.resize(width, height);
+      var y = 4;
+      rows.forEach(function (r) {
+        var x = (width-r.width)/2;
+        r.runs.forEach(function (run) {
+          if (run.icon !== undefined) win.drawIcon(run.icon, x+2, y+2);
+          else {
+            properties.forEach(function (key) { bitmap[key] = run.style[key]; });
+            bitmap.drawText(run.text, x, y, run.width+8, r.height, "left");
+          }
+          x += run.width;
+        });
+        y += r.height;
+      });
+      // Copy so the sprite owns its texture independently of the engine Bitmap.
+      var canvas = document.createElement("canvas");
+      canvas.width = width; canvas.height = height;
+      canvas.getContext("2d").drawImage(bitmap.canvas || bitmap._canvas, 0, 0);
+      var sprite = new PIXI.Sprite(PIXI.Texture.from(canvas));
+      sprite.canvas = canvas; sprite.context = canvas.getContext("2d");
+      sprite.updateText = function () {};
+      return sprite;
+    } finally {
+      if (bitmap.destroy) bitmap.destroy();
+      else if (bitmap._baseTexture) bitmap._baseTexture.destroy();
+    }
+  }
   function target(id) {
     if (id === 0) return $gamePlayer;
     var character = id < 0 ? $gamePlayer.followers().follower(-id-1) : $gameMap.event(id);
     if (!character || character._erased ||
         (id < 0 && character.isVisible && !character.isVisible())) return null;
     return character;
+  }
+  function fontFamily() {
+    if (settings.fontFamily === "GameFont" && typeof Utils !== "undefined" && Utils.RPGMAKER_NAME === "MZ") {
+      return typeof $gameSystem !== "undefined" && $gameSystem.mainFontFace ?
+        $gameSystem.mainFontFace() : "rmmz-mainfont";
+    }
+    return settings.fontFamily;
   }
   function headPosition(scene, character) {
     var sprites = scene._spriteset && scene._spriteset._characterSprites;
@@ -515,7 +660,7 @@
   function clear() {
     Object.keys(bubbles).forEach(function (id) { bubbles[id].slice().forEach(remove); });
   }
-  function show(id, duration, message) {
+  function show(id, duration, message, formatted) {
     var scene = SceneManager._scene;
     if (!(scene instanceof Scene_Map) || !message || !String(message).trim()) return;
     if (!isFinite(id) || Math.floor(id) !== id) return;
@@ -527,8 +672,8 @@
       return;
     }
     var appearance = style();
-    var text = new PIXI.Text(String(message),new PIXI.TextStyle({
-      fontFamily: settings.fontFamily, fontSize: settings.fontSize,
+    var text = formatted ? richText(message, appearance) : new PIXI.Text(String(message),new PIXI.TextStyle({
+      fontFamily: fontFamily(), fontSize: settings.fontSize,
       fill: appearance.text.length === 1 ? appearance.text[0] : appearance.text,
       lineHeight: settings.lineHeight, padding: settings.padding,
       wordWrap: settings.wrap, breakWords: true, align: "center",
@@ -552,6 +697,7 @@
       offsetX:settings.offsetX, offsetY:settings.offsetY };
     if (!bubbles[id]) bubbles[id]=[];
     bubbles[id].unshift(bubble); scene.addChild(container); update(scene);
+    return true;
   }
   function bounce(t) {
     if (t<1/2.75) return 7.5625*t*t;
@@ -665,11 +811,79 @@
     }
     applyPending();
   }
+  function armNext(interpreter, targetId, seconds) {
+    var id = targetId === "current" || targetId == null ? interpreter._eventId || 0 : Number(targetId);
+    var duration = seconds == null ? 5 : Number(seconds);
+    interpreter._fugsNextBubble = null;
+    if (!isFinite(id) || Math.floor(id) !== id || !isFinite(duration) || duration <= 0) return;
+    interpreter._fugsNextBubble = {id:id, duration:duration*1000, mapId:$gameMap.mapId()};
+    ImageManager.loadSystem("Window"); ImageManager.loadSystem("IconSet");
+  }
+  var command101 = Game_Interpreter.prototype.command101;
+  Game_Interpreter.prototype.command101 = function () {
+    var marker = this._fugsNextBubble;
+    if (!marker) return command101.apply(this, arguments);
+    if (!(SceneManager._scene instanceof Scene_Map) || marker.mapId !== $gameMap.mapId()) {
+      this._fugsNextBubble = null;
+      return command101.apply(this, arguments);
+    }
+    // Retry without consuming the marker while normal dialogue or assets are busy.
+    if ($gameMessage.isBusy() || !ImageManager.isReady()) return false;
+    var params101 = arguments[0] || this._params;
+    var end = this._index+1, lines = [];
+    while (this._list[end] && this._list[end].code === 401) {
+      lines.push(this._list[end].parameters[0]); end++;
+    }
+    this._fugsNextBubble = null;
+    var following = this._list[end] && this._list[end].code;
+    // Preserve interactive dialogue and face/speaker presentation intact.
+    if (params101[0] || params101[4] || following === 102 || following === 103 || following === 104) {
+      return command101.apply(this, arguments);
+    }
+    try {
+      if (show(marker.id,marker.duration,lines.join("\n"),true)) {
+        this._index = end-1; // The engine advances past the last consumed line.
+        return true;
+      }
+    } catch (error) {
+      if (debugMode) console.warn("[ChatBubbles] Using normal Show Text: " + error.message);
+    }
+    return command101.apply(this, arguments);
+  };
+  ["setup","terminate"].forEach(function (name) {
+    var original = Game_Interpreter.prototype[name];
+    Game_Interpreter.prototype[name] = function () {
+      this._fugsNextBubble = null;
+      if (original) return original.apply(this,arguments);
+    };
+  });
   var pluginCommand=Game_Interpreter.prototype.pluginCommand;
   Game_Interpreter.prototype.pluginCommand=function (command,args) {
-    pluginCommand.call(this,command,args);
+    if (pluginCommand) pluginCommand.call(this,command,args);
     if (command==="ShowChatBubble") commandShow(this,args);
-    else if (command==="ChatBubble") commandStyle(args);
+    else if (command==="ChatBubble") {
+      if (args[0] === "cancel") this._fugsNextBubble = null;
+      else if (args[0] === "next") {
+        var id = "current", duration = "5", valid = true;
+        args.slice(1).forEach(function (arg) {
+          var pair = arg.split(":");
+          if (pair.length !== 2) valid = false;
+          else if (pair[0] === "event") id = pair[1];
+          else if (pair[0] === "duration") duration = pair[1];
+          else valid = false;
+        });
+        if (valid) armNext(this,id,duration);
+        else this._fugsNextBubble = null;
+      } else commandStyle(args);
+    }
   };
+  if (PluginManager.registerCommand) {
+    PluginManager.registerCommand("FugsChatBubbles","nextText",function (args) {
+      armNext(this,args.target,args.duration);
+    });
+    PluginManager.registerCommand("FugsChatBubbles","cancelNextText",function () {
+      this._fugsNextBubble = null;
+    });
+  }
   Fugs.ChatBubbles={show:show,clear:clear};
 })();

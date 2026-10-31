@@ -4,6 +4,8 @@ Date.now = function () { return clock; };
 var checks = 0;
 var diagnosticCalls = 0;
 var checkedRenderers = ["Canvas"];
+// MV's tilemap Canvas plugin lacks destroy(); tests explicitly destroy renderers.
+PIXI.tilemap.CanvasTileRenderer.prototype.destroy = function () {};
 console.log = console.warn = function () { diagnosticCalls++; };
 function finish(error) {
   fs.writeFileSync(window.testResultPath, JSON.stringify({
@@ -20,7 +22,10 @@ function assert(value, message) {
   checks++;
   if (!value) throw new Error(message);
 }
-var PluginManager = { parameters: function () { return {
+var registeredCommands = {};
+var PluginManager = { registerCommand: function (plugin, name, handler) {
+  registeredCommands[name] = handler;
+}, parameters: function () { return {
   Theme: "custom", "Font Family": "Arial", "Font Size": "24",
   "Font Colors": "#112233", "Font Alpha": "0.4",
   "Font Word Wrap Width": "160", "Bubble Colors": '["#ff0000"]',
@@ -49,13 +54,33 @@ $gamePlayer.followers = function () {
 var event = character(600, 500);
 var $gameMap = new Game_Map();
 $gameMap.event = function (id) { return id === 1 ? event : undefined; };
+$gameMap.mapId = function () { return 1; };
+var $gameMessage = { isBusy: function () { return false; } };
+var $gameVariables = { value: function () { return 42; } };
+var $gameActors = { actor: function () { return {name:function () { return 'Harold'; }}; } };
+var $gameParty = { members: function () { return [{name:function () { return 'Therese'; }}]; } };
+var TextManager = { currencyUnit: 'G' };
+var systemImages = {Window:Bitmap.load('Window.png'), IconSet:Bitmap.load('IconSet.png')};
+var ImageManager = {
+  loadSystem: function (name) { return systemImages[name]; },
+  isReady: function () { return Object.keys(systemImages).every(function (key) { return systemImages[key].isReady(); }); }
+};
+var textAssetsReady = Promise.all(Object.keys(systemImages).map(function (key) {
+  return new Promise(function (resolve) { systemImages[key].addLoadListener(resolve); });
+}));
 var SceneManager = { _scene: new Scene_Map() };
 function Game_Interpreter() { this._eventId = 0; }
 Game_Interpreter.prototype.pluginCommand = function () {};
+Game_Interpreter.prototype.command101 = function () { this.normalMessages=(this.normalMessages||0)+1; return false; };
+Game_Interpreter.prototype.setup = function () {};
+Game_Interpreter.prototype.terminate = function () {};
 var engineHooks = {
   update: Scene_Map.prototype.update, stop: Scene_Map.prototype.stop,
   terminate: Scene_Map.prototype.terminate,
   startEncounterEffect: Scene_Map.prototype.startEncounterEffect,
   setup: Game_Map.prototype.setup,
-  pluginCommand: Game_Interpreter.prototype.pluginCommand
+  pluginCommand: Game_Interpreter.prototype.pluginCommand,
+  command101: Game_Interpreter.prototype.command101,
+  interpreterSetup: Game_Interpreter.prototype.setup,
+  interpreterTerminate: Game_Interpreter.prototype.terminate
 };

@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.0 — 2026-10-31
+
+- Added one-shot conversion of the next Show Text to a nonblocking bubble, scoped to the running interpreter.
+- Added MV `ChatBubble next event:current duration:5` and `ChatBubble cancel` commands, plus MZ command-picker entries.
+- Added formatted rendering using engine variable/name/currency conversion, windowskin colors, icons, font-size changes, multiline text, centered lines, and wrapping.
+- Kept faces, MZ speaker names, attached choices/number/item input, invalid targets, and oversized/render-failed text in normal dialogue.
+- Kept the existing direct text commands and plain-text renderer for compatibility.
+- Added MZ font resolution and parameter adapters. MZ callbacks are tested in the harness; full MZ runtime and third-party message-plugin verification remain outstanding.
+- Expanded the MV harness to load real engine Bitmap/Window_Base code and system images for converted-text checks.
+
 ## 1.0.2 — 2026-10-31
 
 - Anchored bubbles to rendered character sprite transforms, including camera translation, scaling, and shake.
