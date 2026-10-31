@@ -1,8 +1,8 @@
 Promise.all([document.fonts.load("24px GameFont"),textAssetsReady]).then(function () {
 try {
-  var interpreter = new Game_Interpreter();
+  let interpreter = new Game_Interpreter();
   function command(text) {
-    var parts = text.split(" ");
+    let parts = text.split(" ");
     interpreter.pluginCommand(parts.shift(), parts);
   }
   function latest(id) { return Fugs.Bubbles[id][0]; }
@@ -10,10 +10,10 @@ try {
   function advance(ms) { clock += ms; SceneManager._scene.update(); }
   runNextTextTests();
   function checkInk(text) {
-    var canvas = text.canvas;
-    var pixels = text.context.getImageData(0, 0, canvas.width, canvas.height).data;
-    var minX=canvas.width, maxX=-1, minY=canvas.height, maxY=-1;
-    for (var y=0;y<canvas.height;y++) for (var x=0;x<canvas.width;x++) {
+    let canvas = text.canvas;
+    let pixels = text.context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let minX=canvas.width, maxX=-1, minY=canvas.height, maxY=-1;
+    for (let y=0;y<canvas.height;y++) for (let x=0;x<canvas.width;x++) {
       if (pixels[(y*canvas.width+x)*4+3]) {
         minX=Math.min(minX,x); maxX=Math.max(maxX,x);
         minY=Math.min(minY,y); maxY=Math.max(maxY,y);
@@ -23,16 +23,16 @@ try {
     assert(Math.abs(text.y+(minY+maxY+1-canvas.height)/2)<0.51, "ink vertically centered");
   }
   command("ShowChatBubble -- iii");
-  var first=latest(0), label=textOf(first), bg=first.container.children[0];
+  let first=latest(0), label=textOf(first), bg=first.container.children[0];
   assert(first.target===$gamePlayer, "common event defaults to player");
   assert(label.style.fontFamily==="Arial" && label.style.fontSize===24, "font parameters");
   assert(label.style.fill==="#112233" && label.alpha===0.4, "text color and alpha");
   assert(label.style.align==="center" && label.style.wordWrapWidth===160, "wrapping and alignment");
   assert(bg.alpha===0.25, "background alpha");
-  var pixel=bg.texture.baseTexture.source.getContext("2d").getImageData(4,4,1,1).data;
+  let pixel=bg.texture.baseTexture.source.getContext("2d").getImageData(4,4,1,1).data;
   assert(pixel[0]===255 && pixel[1]===0 && pixel[2]===0, "single color JSON array and square background");
   checkInk(label);
-  var centerX=first.container.x, centerY=first.container.y;
+  let centerX=first.container.x, centerY=first.container.y;
   advance(100);
   assert(first.container.x===centerX && first.container.y===centerY, "center fixed during bounce");
   advance(4650);
@@ -115,8 +115,8 @@ try {
   assert(Fugs.Bubbles[0][1].container.y<latest(0).container.y, "older bubble above newer");
   Fugs.ChatBubbles.clear();
 
-  var baseCount=Object.keys(PIXI.utils.BaseTextureCache).length;
-  for (var i=0;i<40;i++) { command("ShowChatBubble resource"); Fugs.ChatBubbles.clear(); }
+  let baseCount=Object.keys(PIXI.utils.BaseTextureCache).length;
+  for (let i=0;i<40;i++) { command("ShowChatBubble resource"); Fugs.ChatBubbles.clear(); }
   assert(Object.keys(PIXI.utils.BaseTextureCache).length===baseCount, "canvas base textures released");
   ["stop","terminate","startEncounterEffect"].forEach(function (method) {
     command("ShowChatBubble transition"); SceneManager._scene[method]();
@@ -126,7 +126,7 @@ try {
   command("ShowChatBubble transfer");
   $gameMap.setup(2);
   assert(Object.keys(Fugs.Bubbles).length===0, "map setup clears");
-  var oldScene=SceneManager._scene;
+  let oldScene=SceneManager._scene;
   command("ShowChatBubble owner");
   SceneManager._scene=new Scene_Map(); Fugs.ChatBubbles.clear();
   assert(oldScene.children.length===0, "cleanup detaches actual parent");
@@ -134,24 +134,24 @@ try {
   $gamePlayer=character(0,0);
   $gamePlayer.followers=function () { return { follower: function () {} }; };
   command("ShowChatBubble edge");
-  var edge=latest(0);
+  let edge=latest(0);
   advance(300);
   assert(edge.container.x-edge.width*edge.container.scale.x/2>=0, "left edge clamped");
   assert(edge.container.y-edge.height*edge.container.scale.y/2>=0, "top edge clamped");
   Fugs.ChatBubbles.clear();
-  for (var row=0;row<16;row++) command("ShowChatBubble stacking at edge");
+  for (let row=0;row<16;row++) command("ShowChatBubble stacking at edge");
   advance(300);
-  var rows=Fugs.Bubbles[0];
-  for (var j=1;j<rows.length;j++) {
-    var newer=rows[j-1], older=rows[j];
+  let rows=Fugs.Bubbles[0];
+  for (let j=1;j<rows.length;j++) {
+    let newer=rows[j-1], older=rows[j];
     assert(older.container.y+older.height*older.fit/2 <=
       newer.container.y-newer.height*newer.fit/2, "dense stack does not overlap");
   }
-  var oldest=rows[rows.length-1];
+  let oldest=rows[rows.length-1];
   assert(oldest.container.y-oldest.height*oldest.fit/2>=3.99, "dense stack stays on screen");
   Fugs.ChatBubbles.clear();
   Fugs.ChatBubbles.show(0,1000,new Array(200).join("long message "));
-  var tall=latest(0); advance(300);
+  let tall=latest(0); advance(300);
   assert(tall.height*tall.container.scale.y<=Graphics.height, "oversize text fits screen");
   Fugs.ChatBubbles.clear();
   command("ShowChatBubble event:0 duration:0.1 -- short");
@@ -161,8 +161,8 @@ try {
   assert(Object.keys(Fugs.Bubbles).length===0, "short lifetime exact");
 
   // Real Pixi transforms, as used by MV character sprites and camera parents.
-  var scene=SceneManager._scene, camera=new PIXI.Container();
-  var mapLayer=new PIXI.Container(), characterSprite=new PIXI.Sprite(PIXI.Texture.EMPTY);
+  let scene=SceneManager._scene, camera=new PIXI.Container();
+  let mapLayer=new PIXI.Container(), characterSprite=new PIXI.Sprite(PIXI.Texture.EMPTY);
   scene.addChild(camera); camera.addChild(mapLayer); mapLayer.addChild(characterSprite);
   scene._spriteset=camera;
   camera._characterSprites=[characterSprite];
@@ -172,7 +172,7 @@ try {
   camera.scale.set(1.5); camera.position.set(-100,-180);
   $gameMap.zoom={x:2,y:2};
   command("ShowChatBubble camera");
-  var anchored=latest(0); advance(300);
+  let anchored=latest(0); advance(300);
   assert(Math.abs(anchored.container.x-350)<0.01, "camera translation and scale anchor X");
   assert(Math.abs(anchored.container.y+anchored.height*anchored.fit/2-312)<0.01,
     "actual character height and camera anchor Y");
@@ -187,7 +187,7 @@ try {
   camera.destroy({children:true}); delete scene._spriteset; delete $gameMap.zoom;
 
   // Reinitialize empty plugin instances to check independent parameter sets.
-  var defaults=PluginManager.parameters("FugsChatBubbles");
+  let defaults=PluginManager.parameters("FugsChatBubbles");
   function reload(overrides, clean) {
     Fugs.ChatBubbles.clear();
     ["update","stop","terminate","startEncounterEffect"].forEach(function (name) {
@@ -204,19 +204,19 @@ try {
   reload({"Font Alpha":"0","Bubble Alpha":"0","Font Padding":"0",
     "Bubble Width Margin":"0","Bubble Height Margin":"0","Font WordWrap":"false"});
   command("ShowChatBubble transparent");
-  var transparent=latest(0);
+  let transparent=latest(0);
   assert(textOf(transparent).alpha===0 && transparent.container.children[0].alpha===0,
     "zero opacities preserved");
   assert(textOf(transparent).style.wordWrap===false && textOf(transparent).style.padding===0,
     "zero padding and wrapping disabled");
   advance(300);
   assert(diagnosticCalls===0, "plugin does not dump diagnostics");
-  var renderer=new PIXI.CanvasRenderer(Graphics.width,Graphics.height,{transparent:true});
-  var rendererDiagnostics=diagnosticCalls; // Pixi prints its own renderer banner.
+  let renderer=new PIXI.CanvasRenderer(Graphics.width,Graphics.height,{transparent:true});
+  let rendererDiagnostics=diagnosticCalls; // Pixi prints its own renderer banner.
   renderer.render(scene);
-  var rendered=renderer.view.getContext("2d").getImageData(0,0,Graphics.width,Graphics.height).data;
-  var visible=false;
-  for (var k=3;k<rendered.length;k+=4) if (rendered[k]) { visible=true; break; }
+  let rendered=renderer.view.getContext("2d").getImageData(0,0,Graphics.width,Graphics.height).data;
+  let visible=false;
+  for (let k=3;k<rendered.length;k+=4) if (rendered[k]) { visible=true; break; }
   assert(!visible, "zero-opacity bubble renders transparent pixels");
   Fugs.ChatBubbles.clear();
   renderer.render(scene);
@@ -227,14 +227,14 @@ try {
     "Bubble Shape":"Round","Bubble Border Width":"4",
     "Bubble Border Color":"0x00ff00","Bubble Alpha":"1"});
   command("ShowChatBubble rounded");
-  var rounded=latest(0), canvas=rounded.container.children[0].texture.baseTexture.source;
+  let rounded=latest(0), canvas=rounded.container.children[0].texture.baseTexture.source;
   assert(textOf(rounded).style.fill==="#FFFFFF", "invalid text color falls back");
   assert(textOf(rounded).style.fontSize===28, "invalid number falls back");
-  var ctx=canvas.getContext("2d");
+  let ctx=canvas.getContext("2d");
   assert(ctx.getImageData(0,0,1,1).data[3]===0, "round corner transparent");
-  var border=ctx.getImageData(Math.floor(canvas.width/2),1,1,1).data;
+  let border=ctx.getImageData(Math.floor(canvas.width/2),1,1,1).data;
   assert(border[1]===255 && border[0]===0, "configured border rendered");
-  var fill=ctx.getImageData(Math.floor(canvas.width/2),Math.floor(canvas.height/2),1,1).data;
+  let fill=ctx.getImageData(Math.floor(canvas.width/2),Math.floor(canvas.height/2),1,1).data;
   assert(fill[0]===17 && fill[1]===34 && fill[2]===51, "invalid gradient colors filtered");
   Fugs.ChatBubbles.clear();
   Fugs.ChatBubbles.show(0,-1,"invalid");
@@ -245,8 +245,8 @@ try {
     "Font Colors":"rgb(20,30,40)", "Bubble Border Color":"bad"});
   command("ShowChatBubble css colors");
   assert(textOf(latest(0)).style.fill==="rgb(20,30,40)", "CSS function commas kept inside color");
-  var cssCanvas=latest(0).container.children[0].texture.baseTexture.source;
-  var cssPixel=cssCanvas.getContext("2d").getImageData(cssCanvas.width/2,cssCanvas.height/2,1,1).data;
+  let cssCanvas=latest(0).container.children[0].texture.baseTexture.source;
+  let cssPixel=cssCanvas.getContext("2d").getImageData(cssCanvas.width/2,cssCanvas.height/2,1,1).data;
   assert(cssPixel[0]>0 && cssPixel[2]>0 && cssPixel[3]>100 && cssPixel[3]<150,
     "rgba gradient rendered");
   Fugs.ChatBubbles.clear();
@@ -256,7 +256,7 @@ try {
     textOf(latest(0)).style.fontSize===28, "missing parameters use stock font defaults");
   assert(latest(0).container.children[0].alpha===0.7, "default Dark theme opacity");
   advance(300);
-  var gameRenderer=PIXI.autoDetectRenderer(Graphics.width,Graphics.height,{transparent:true});
+  let gameRenderer=PIXI.autoDetectRenderer(Graphics.width,Graphics.height,{transparent:true});
   rendererDiagnostics=diagnosticCalls;
   checkedRenderers.push(gameRenderer.type===PIXI.RENDERER_TYPE.WEBGL ? "WebGL" : "Canvas fallback");
   gameRenderer.render(scene);
@@ -266,14 +266,14 @@ try {
   gameRenderer.destroy(true);
   assert(Object.keys(PIXI.utils.BaseTextureCache).length===baseCount,
     "all configuration and renderer paths release bubble base textures");
-  var mapScene=SceneManager._scene;
+  let mapScene=SceneManager._scene;
   SceneManager._scene=new PIXI.Container();
   Fugs.ChatBubbles.show(0,1000,"not on map");
   assert(Object.keys(Fugs.Bubbles).length===0, "non-map scene ignores show");
   SceneManager._scene=mapScene;
   assert(diagnosticCalls===rendererDiagnostics, "debug disabled stays quiet");
   reload({"Debug Mode":"true"},true);
-  var beforeWarning=diagnosticCalls;
+  let beforeWarning=diagnosticCalls;
   command("ShowChatBubble 999 1 missing");
   assert(diagnosticCalls===beforeWarning+1, "debug mode warns once on missing target");
   runNativeInterpreterTests();
