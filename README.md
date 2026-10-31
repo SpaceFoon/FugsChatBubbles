@@ -114,6 +114,23 @@ When a rendered character sprite is available, its actual transformed head posit
 
 For script calls, `Fugs.ChatBubbles.show(eventId, durationMs, message)` shows a map bubble and `Fugs.ChatBubbles.clear()` removes all bubbles. An optional fourth argument `true` uses the formatted Show Text renderer; callers must ensure the Window and IconSet system images are loaded first. It returns `false` if formatted text cannot be rendered, such as when it exceeds a safety limit. The original direct commands and default script calls retain their plain-text Pixi renderer.
 
+## Releases and plugin directory listing
+
+This section is for maintainers. It explains how a release gets from this repository into the Fugs Plugins directory.
+
+The [release workflow](.github/workflows/release.yml) runs when a `v*` tag is pushed, or when you manually run **Actions → Release** and enter a version. For a normal release, commit and push the files you want included, tag that commit, then push the tag:
+
+    git tag v1.1.0
+    git push origin v1.1.0
+
+It creates a GitHub release and a ready-to-install `FugsChatBubbles-v1.1.0.zip` containing `FugsChatBubbles.js`, `LICENSE`, `README.md`, and generated `INSTALL.txt`.
+
+After publishing the release, the workflow updates the `fugs-chat-bubbles` entry in the private [`SpaceFoon/fugs-plugins`](https://github.com/SpaceFoon/fugs-plugins) repository with the new version and ZIP download link. It makes a branch and opens a pull request; **the listing changes only after that pull request is merged**.
+
+For this directory update, add a repository Actions secret named `FUGS_SITE_SYNC_TOKEN`. Its fine-grained token must have access to `SpaceFoon/fugs-plugins`, with **Contents: read and write** and **Pull requests: read and write**. The token owner needs write access to that repository. The release upload uses GitHub's built-in token; this extra token is only for the private directory repository.
+
+If the secret is missing, expired, or lacks access, the ZIP and GitHub release may still be created, but the directory pull request will fail. Check the **Sync catalog site PR** step in the Actions run. After fixing the token, rerun the release workflow; confirm that the catalog pull request appears and is merged before expecting the directory page to show the new version.
+
 ## Verification
 
 Run the regression harness with an installed MV SDK runtime:
