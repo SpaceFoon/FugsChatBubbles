@@ -112,7 +112,7 @@ Bubbles and stacks fit within the screen. Large messages or dense stacks shrink 
 
 When a rendered character sprite is available, its actual transformed head position anchors the bubble, including camera translation, scale, and shake. The legacy $gameMap.zoom.x/y coordinates are used only as a fallback. A complete game with MBS or other camera plugins still needs an integration check. Battle-character targets are not implemented.
 
-For script calls, `Fugs.ChatBubbles.show(eventId, durationMs, message)` shows a map bubble and `Fugs.ChatBubbles.clear()` removes all bubbles. An optional fourth argument `true` uses the formatted Show Text renderer; callers must ensure the Window and IconSet system images are loaded first. The original direct commands and default script calls retain their plain-text Pixi renderer.
+For script calls, `Fugs.ChatBubbles.show(eventId, durationMs, message)` shows a map bubble and `Fugs.ChatBubbles.clear()` removes all bubbles. An optional fourth argument `true` uses the formatted Show Text renderer; callers must ensure the Window and IconSet system images are loaded first. It returns `false` if formatted text cannot be rendered, such as when it exceeds a safety limit. The original direct commands and default script calls retain their plain-text Pixi renderer.
 
 ## Verification
 

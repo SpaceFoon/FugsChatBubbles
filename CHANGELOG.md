@@ -10,6 +10,7 @@
 - Added MZ font resolution and parameter adapters. MZ callbacks are tested in the harness; full MZ runtime and third-party message-plugin verification remain outstanding.
 - Expanded the MV harness to load real engine Bitmap/Window_Base code and system images for converted-text checks.
 - Review follow-up: preserve unsupported/custom text codes by falling back to the complete original Show Text, instead of stripping their names and displaying leftover parameters.
+- Catch formatted-rendering failures so oversized Show Text falls back and direct script calls return `false` instead of leaking an exception.
 - Corrected the wrapped-line limit boundary and reject oversized unwrapped lines/font-size codes before excessive measurement/allocation.
 - Expanded to 170 passing checks, including native MV interpreter execution, normal-message waits, choice callbacks, formatted texture cleanup, and actual scene rendering; allowed NW to shut down before test scratch cleanup.
 

@@ -622,6 +622,11 @@
       sprite.canvas = canvas; sprite.context = canvas.getContext("2d");
       sprite.updateText = function () {};
       return sprite;
+    } catch (error) {
+      // The Show Text hook can preserve the original message; script callers
+      // receive false instead of an uncaught rendering error.
+      if (debugMode) console.warn("[ChatBubbles] Could not render formatted text: " + error.message);
+      return null;
     } finally {
       if (bitmap.destroy) bitmap.destroy();
       else if (bitmap._baseTexture) bitmap._baseTexture.destroy();
@@ -690,6 +695,7 @@
       wordWrapWidth: Math.max(1,Math.min(settings.wrapWidth,
         Graphics.width-settings.widthMargin-settings.padding*2-settings.borderWidth*2-8))
     }));
+    if (!text) return false;
     var ink;
     try { ink = inkBounds(text); }
     catch (error) { text.destroy(true); throw error; }
