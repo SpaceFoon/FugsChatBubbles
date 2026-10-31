@@ -3,9 +3,9 @@
 //=============================================================================
 
 /*:
- * @target MV 1.63
- * @plugindesc v1.0.0 Speech bubbles that follow events and stack.
- * @version 1.0.0
+ * @target MV
+ * @plugindesc v1.0.1 Speech bubbles that follow events and stack.
+ * @version 1.0.1
  *
  * @author Fugahagen
  *
@@ -66,18 +66,18 @@
  *
  *
  * @param Font Padding
- * @desc lineHeight of the bubble text in pixels
+ * @desc Padding around the visible text
  * @type number
  * @default 6
  *
  *
  * @param Font WordWrap
- * @desc lineHeight of the bubble text in pixels
+ * @desc Wrap text within the configured width
  * @type boolean
  * @default true
  *
  * @param Font Word Wrap Width
- * @desc lineHeight of the bubble text in pixels
+ * @desc Maximum text width in pixels, limited to the viewport
  * @type number
  * @default 500
  *
@@ -113,18 +113,20 @@
  *
  *
  * @param Canvas Rendering
- * @desc The canvas rendering context.
+ * @desc Deprecated compatibility setting; bubbles always use a 2D canvas.
  * @type string
  * @default ctx
  *
  * @param Bubble Offset X
- * @desc
+ * @desc Horizontal offset from the character center
  * @type number
- * @default -4
+ * @min -8192
+ * @default 0
  *
  * @param Bubble Offset Y
  * @desc
  * @type number
+ * @min -8192
  * @default -10
  *
  * @param Bubble Width Margin
@@ -147,10 +149,6 @@
  * @type string
  * @default 0xffffff
  *
- * @param Bubble Colors
- * @desc
- * @type array
- * @default ["#990000", "#cc0000", "#000000"]
  *
  *
  * @help
@@ -182,7 +180,7 @@
  * - Bubble animations: Bounce in and fade out.
  * - Fully customizable style with built in themes.
  * - Bubbles can follow events, the player or even followers.
- * - Works with MBS Maps zoom and presumed others as well
+ * - Legacy map zoom scale support; playtest external camera plugins.
  * - Text and bubbles can use gradients with as many colors as you want.
  * - That sweet sweet ff7 look with a theme.
  *
@@ -190,15 +188,15 @@
  * Future plans
  * ============================================================================
  *
- * - Fix minor issues stated below
+ * - Expand third-party zoom integration coverage
  * - Add remove all bubbles plugin command
- * - Add plugin commands to change all styles on the fly for each event or all
+ * - Add per-event style overrides
  * - Stacking bubbles from other events ie actors talking
  * - Add text code support. Hook into rmmv window system
- * - Port to MZ. I wrote this plugin with the most modern js I could.
+ * - Port to MZ.
  * - Make work for battles?
  * - Add arrows
- * - Added ability to change y value in bubble command
+ * - Per-bubble placement options
  * - Add window skin from image
  * - X and Y bubble placement
  *
@@ -206,7 +204,7 @@
  *  Plugin Parameters
  * ============================================================================
  *
- * Debug Mode - Enable for log spam
+ * Debug Mode - Warn about missing targets
  *
  * Theme - There are many themes to choose but only custom will allow the
  * parameters for any color to be used. Otherwise the theme chooses colors.
@@ -215,28 +213,18 @@
  *  Plugin Commands
  * ============================================================================
  *
- * You may leave event or event and duration blank for default values.
- * 1 = event 1, 0 = player, -1 = first follower.
- * ShowChatBubble [event][duration/seconds][message]
- * ShowChatBubble 1 8 My new chat bubble! Show bubble on event one for 8 seconds:
- * ShowChatBubble 1.5 My new chat bubble! Show bubble on this event for 1.5 seconds
+ * ShowChatBubble eventId seconds message
+ * ShowChatBubble seconds message (current event, otherwise player)
+ * ShowChatBubble message (5 seconds)
+ * For numeric text: ShowChatBubble event:0 duration:5 -- 2 enemies left
+ * Or: ShowChatBubble -- 2 enemies left
+ * ChatBubble changeColor delayMs theme: Dark
+ * ChatBubble changeFont delayMs GameFont
+ * Changes affect new bubbles. delayMs defaults to 0.
+ * Legacy bracket syntax works; ff7 = CrimsonAndBlue.
+ * Bubbles clear on map exit, encounters, and transfers.
+ * Duration includes fading. See README.md for limitations.
  *
- * These changes will effect the next bubble drawn
- * ChatBubble [task][duration ms][parameters]
- * ChatBubble [changeColor][100][theme: ff7]
- * ChatBubble [changeFont][0][gameFont]
- *
- *
- * ============================================================================
- * Known issues
- * ============================================================================
- *
- * When zooming to extremes you can tell the window is not perfectly centered
- *
- * When a message is all short lowercase letter the text look off center
- *
- * Will error when selected follower or event that doesn't exist.
- * stays open when battles started Scene_Map.prototype.startEncounterEffect
  * ============================================================================
  * Terms of Use
  * ============================================================================
@@ -260,85 +248,54 @@
  * Version History
  * ============================================================================
  *
+ * 1.0.1 - [10/31/2026]: Runtime, styling, layout, lifetime, and cleanup fixes.
  * 1.0 - [3/30/2024]: Initial release
  *
  * ============================================================================
  */
 
-// var Imported = Imported || {};
-// Imported.Fugs = true;
-// var Fugs = Fugs || {};
-// Fugs.Bubbles = {};
-// Fugs.Parameters = PluginManager.parameters("FugsChatBubbles");
-// Fugs.Bubbles.Debug = Fugs.Parameters["Debug Mode"];
-// Fugs.Bubbles.theme = Fugs.Parameters["Theme"];
-(() => {
-  const pluginName = "FugsChatBubbles";
-  const params = PluginManager.parameters(pluginName);
-  const debugMode = params["Debug Mode"] === "true";
-  const pluginParams = PluginManager.parameters("FugsChatBubbles");
 
-  // Font Parameters
-  const fontFamily = String(pluginParams["Font Family"] || "GameFont");
-  const fontSize = Number(pluginParams["Font Size"] || 28);
-  const fontColors = pluginParams["Font Colors"]
-    ? pluginParams["Font Colors"].split(",")
-    : ["#FFFFFF"];
-  const fontAlpha = Number(pluginParams["Font Alpha"] || 1);
-  const fontLineHeight = Number(pluginParams["Font Line Height"] || 32);
-  const fontPadding = Number(pluginParams["Font Padding"] || 6);
-  const fontWordWrap = pluginParams["Font WordWrap"] === "true";
-  const fontWordWrapWidth = Number(pluginParams["Font Word Wrap Width"] || 500);
-
-  // Bubble Parameters
-  const bubbleColors = pluginParams["Bubble Colors"]
-    ? pluginParams["Bubble Colors"].split(",")
-    : ["#000000"];
-  const bubbleAlpha = Number(pluginParams["Bubble Alpha"] || 0.7);
-  const bubbleShape = String(pluginParams["Bubble Shape"] || "Round");
-  const bubbleRadius = Number(pluginParams["Bubble Radius"] || 10);
-  const bubbleOffsetX = Number(pluginParams["Bubble Offset X"] || -4);
-  const bubbleOffsetY = Number(pluginParams["Bubble Offset Y"] || -10);
-  const bubbleWidthMargin = Number(pluginParams["Bubble Width Margin"] || 16);
-  const bubbleHeightMargin = Number(pluginParams["Bubble Height Margin"] || 8);
-  const bubbleBorderWidth = Number(pluginParams["Bubble Border Width"] || 3);
-  const bubbleBorderColor = String(
-    pluginParams["Bubble Border Color"] || "#FFFFFF"
-  );
-
-  // Canvas Rendering
-  const canvasRenderingContext = String(
-    pluginParams["Canvas Rendering"] || "ctx"
-  );
-
-  // Bubble Colors Array
-  const bubbleColorsArray = pluginParams["Bubble Colors Array"]
-    ? JSON.parse(pluginParams["Bubble Colors Array"])
-    : ["#990000", "#cc0000", "#000000"];
-
-  function Window_Bubbles() {
-    this.initialize.apply(this, arguments);
+(function () {
+  "use strict";
+  var params = PluginManager.parameters("FugsChatBubbles");
+  var debugMode = params["Debug Mode"] === "true";
+  var Fugs = window.Fugs = window.Fugs || {};
+  var bubbles = Fugs.Bubbles = {};
+  var pending = [];
+  function number(value, fallback, min, max) {
+    var n = value === "" || value == null ? fallback : Number(value);
+    if (!isFinite(n)) n = fallback;
+    return Math.max(min, Math.min(max, n));
   }
-  // Theme presets
-  const THEMES = {
+  function colors(value, fallback) {
+    var result;
+    try { result = JSON.parse(value); } catch (ignore) {}
+    if (!Array.isArray(result)) result = String(value || fallback).split(",");
+    result = result.map(function (c) { return String(c).trim(); }).filter(Boolean);
+    return result.length ? result : [fallback];
+  }
+  function cssColor(value) {
+    return String(value).replace(/^0x([a-f0-9]{6})$/i, "#$1");
+  }
+  var THEMES = {
     WhiteBlack: {
       bubbleColors: ["#FFFFFF"],
       textColors: ["#000000"],
-      bubbleAlpha: Number(Fugs.Parameters["Bubble Alpha"]) || 0.9,
+      bubbleAlpha: 0.9,
     },
     BlackWhite: {
       bubbleColors: ["#000000"],
       textColors: ["#FFFFFF"],
-      bubbleAlpha: Number(Fugs.Parameters["Bubble Alpha"]) || 0.7,
+      bubbleAlpha: 0.7,
     },
     Custom: {
-      bubbleColors: (Fugs.Parameters["Bubble Colors"] || "#000000")
+      bubbleColors: (params["Bubble Colors"] || "#000000")
         .split(",")
         .map((c) => c.trim()),
-      textColors: (Fugs.Parameters["Text Colors"] || "#FFFFFF")
+      textColors: (params["Font Colors"] || "#FFFFFF")
         .split(",")
         .map((c) => c.trim()),
-      bubbleAlpha: Number(Fugs.Parameters["Bubble Alpha"]) || 0.8,
+      bubbleAlpha: Number(params["Bubble Alpha"]) || 0.8,
     },
     Light: {
       bubbleColors: ["#ffffff", "#e6e6e6"], // White tones
@@ -412,372 +369,258 @@
     },
   };
 
-  Window_Bubbles.prototype = Object.create(Window_Base.prototype);
-  Window_Bubbles.prototype.constructor = Window_Bubbles;
 
-  Window_Bubbles.prototype.initialize = function (time, message, eventId) {
-    Window_Base.prototype.initialize.call(
-      this,
-      0,
-      0,
-      Graphics.width,
-      Graphics.height
-    );
-    this._time = time;
-    this._message = message;
-    this._eventId = eventId;
-    this._createdAt = Date.now();
-    this.createBubble();
+  var settings = {
+    theme: params.Theme || "Dark", fontFamily: params["Font Family"] || "GameFont",
+    fontSize: number(params["Font Size"], 28, 1, 256),
+    fontColors: colors(params["Font Colors"], "#FFFFFF"),
+    fontAlpha: number(params["Font Alpha"], 1, 0, 1),
+    lineHeight: number(params["Font Line Height"], 32, 1, 512),
+    padding: number(params["Font Padding"], 6, 0, 128),
+    wrap: params["Font WordWrap"] !== "false",
+    wrapWidth: number(params["Font Word Wrap Width"], 500, 1, 8192),
+    bubbleColors: colors(params["Bubble Colors"], "#000000"),
+    bubbleAlpha: number(params["Bubble Alpha"], 0.7, 0, 1),
+    shape: params["Bubble Shape"] || "Round",
+    radius: number(params["Bubble Radius"], 10, 0, 128),
+    offsetX: number(params["Bubble Offset X"], 0, -8192, 8192),
+    offsetY: number(params["Bubble Offset Y"], -10, -8192, 8192),
+    widthMargin: number(params["Bubble Width Margin"], 16, 0, 1024),
+    heightMargin: number(params["Bubble Height Margin"], 8, 0, 1024),
+    borderWidth: number(params["Bubble Border Width"], 3, 0, 128),
+    borderColor: cssColor(params["Bubble Border Color"] || "#FFFFFF")
   };
-  //----------------------------------------------------------------------//
-  Window_Bubbles.prototype.createBubble = function () {
-    // try {
-    const eventId = this._eventId;
-    const followerIndex = eventId < 0 ? Math.abs(eventId) - 1 : null;
-
-    const targetEvent =
-      eventId === 0
-        ? $gamePlayer
-        : eventId < 0
-        ? $gamePlayer._followers.follower(followerIndex)
-        : $gameMap.event(eventId);
-
-    if (!targetEvent) return;
-
-    Fugs.Bubbles[eventId] ??= [];
-
-    const bubble = {
-      eventId: eventId,
-      message: this._message,
-      time: this._time,
-      createdAt: this._createdAt,
-      show: true,
-      targetEvent: targetEvent,
-    };
-
-    Fugs.Bubbles[eventId].unshift(bubble);
-    this.createChatBubble(bubble);
-    this.updateBubbleStack(eventId);
-    // } catch (error) {
-    //   console.error(`[ChatBubbles] Error creating bubble:`, error);
-    // }
-  };
-
-  //----------------------------------------------------------------------//
-  Window_Bubbles.prototype.drawBackground = function (
-    textWidth,
-    textHeight,
-    bubble
-  ) {
-    // const zoom = $gameMap.zoom ?? { x: 1, y: 1 };
-    let offsetX = -4;
-    let offsetY = -10;
-    let radius = 10;
-    let widthMargin = 16;
-    let heightMargin = 8;
-    let borderWidth = 3;
-    let borderColor = 0xffffff;
-    let gradientColors = ["#990000", "#cc0000", "#000000"];
-
-    const gradientCanvas = this.createGradientCanvas(
-      textWidth + widthMargin,
-      textHeight + heightMargin,
-      gradientColors,
-      radius,
-      borderColor,
-      borderWidth
-    );
-    console.log("Gradient Canvas Valid:", gradientCanvas);
-    console.log(
-      "Canvas Dimensions:",
-      gradientCanvas.width,
-      gradientCanvas.height
-    );
-    // console.log("Canvas Data URL:", gradientCanvas.toDataURL());
-
-    const bubbleBackground = new PIXI.Graphics();
-    bubbleBackground.lineStyle(borderWidth, borderColor);
-    bubbleBackground.beginFill("#000000");
-    bubbleBackground.drawRoundedRect(
-      offsetX,
-      offsetY,
-      textWidth + widthMargin,
-      textHeight + heightMargin,
-      radius
-    );
-    bubbleBackground.alpha = 0.1;
-    bubbleBackground.endFill();
-
-    const gradientTexture = PIXI.Texture.from(gradientCanvas);
-    const gradientSprite = new PIXI.Sprite(gradientTexture);
-    gradientSprite.position.set(offsetX, offsetY);
-    // gradientSprite.zIndex = 100;
-
-    SceneManager._scene.addChild(gradientSprite);
-    SceneManager._scene.addChild(bubbleBackground);
-    console.log(gradientSprite);
-    console.log(
-      "Canvas Dimensions:",
-      gradientCanvas.width,
-      gradientCanvas.height
-    );
-    console.log("Gradient Texture Valid:", gradientTexture);
-    console.log("Canvas Gradient Output:", gradientCanvas.toDataURL());
-
-    bubbleBackground.alpha = 0.7;
-    bubble.bubbleBackground = bubbleBackground;
-    bubble.gradientSprite = gradientSprite;
-    console.log("Bubble Container Children:", bubble.children);
-    console.log("Scene Children:", SceneManager._scene.children);
-  };
-
-  Window_Bubbles.prototype.createGradientCanvas = function (
-    width,
-    height,
-    colors,
-    radius,
-    borderColor,
-    borderWidth
-  ) {
-    console.log(width, height, colors, radius, borderColor, borderWidth);
-    let canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    canvas.alpha = 1;
-    let ctx = canvas.getContext("2d");
-    if (!ctx) {
-      console.error("Failed to get canvas 2D context");
-      return null;
-    }
-    let gradient = ctx.createLinearGradient(0, 0, width, height);
-    let step = 1 / (colors.length - 1);
-    colors.forEach((color, index) => {
-      gradient.addColorStop(index * step, color);
+  function themeName(name) {
+    if (String(name).toLowerCase() === "ff7") return "CrimsonAndBlue";
+    return Object.keys(THEMES).filter(function (key) {
+      return key.toLowerCase() === String(name).toLowerCase();
+    })[0];
+  }
+  function applyPending() {
+    var now = Date.now();
+    pending = pending.filter(function (change) {
+      if (change.at > now) return true;
+      change.apply(); return false;
     });
-    ctx.fillStyle = gradient;
-
-    ctx.beginPath();
-    ctx.moveTo(radius, 0);
-    ctx.arcTo(width, 0, width, height, radius);
-    ctx.arcTo(width, height, 0, height, radius);
-    ctx.arcTo(0, height, 0, 0, radius);
-    ctx.arcTo(0, 0, width, 0, radius);
-    ctx.closePath();
-    ctx.fill();
-    // ctx.fillRect(0, 0, width, height);
-
-    if (borderWidth > 0) {
-      ctx.lineWidth = borderWidth;
-      ctx.strokeStyle = borderColor;
-      ctx.stroke();
-    }
-
-    let texture = PIXI.Texture.from(canvas);
-    if (!texture) {
-      console.error("Failed to create texture from canvas");
-      return null;
-    }
-
-    return canvas;
-  };
-
-  //----------------------------------------------------------------------//
-  Window_Bubbles.prototype.createChatBubble = function (bubble) {
-    const textStyle = new PIXI.TextStyle({
-      fontFamily: "GameFont",
-      fontSize: 28,
-      fill: ["#8f8f8f", "#947171", "#6b5252", "#cea1a1"],
-      fillGradientStops: [1],
-      lineHeight: 32,
-      padding: 6,
-      wordWrap: true,
-      wordWrapWidth: 500,
-    });
-
-    const bubbleText = new PIXI.Text(bubble.message, textStyle);
-    bubble.textWidth = bubbleText.width;
-    bubble.textHeight = bubbleText.height;
-    bubble.bubbleText = bubbleText;
-
-    this.drawBackground(bubble.textWidth, bubble.textHeight, bubble);
-
-    [bubbleText, bubble.bubbleBackground, bubble.gradientSprite].forEach(
-      (el) => {
-        el.scale.set(0.5);
-        el.alpha = 0;
-      }
-    );
-
-    SceneManager._scene.addChild(bubbleText);
-
-    const animateScaleAndFadeIn = () => {
-      const startTime = Date.now();
-      const duration = 300;
-
-      const animate = () => {
-        const elapsed = Date.now() - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        const bounceProgress = this.easeOutBounce(progress);
-
-        [bubbleText, bubble.bubbleBackground, bubble.gradientSprite].forEach(
-          (el) => el.scale.set(bounceProgress)
-        );
-        bubbleText.alpha = progress;
-        bubble.bubbleBackground.alpha = progress * 0.7;
-        bubble.gradientSprite.alpha = progress;
-        if (progress < 1) requestAnimationFrame(animate);
-      };
-
-      requestAnimationFrame(animate);
+  }
+  function style() {
+    applyPending();
+    var preset = THEMES[themeName(settings.theme)];
+    var custom = String(settings.theme).toLowerCase() === "custom";
+    return {
+      fill: custom || !preset ? settings.bubbleColors : preset.bubbleColors,
+      text: custom || !preset ? settings.fontColors : preset.textColors,
+      alpha: custom || !preset ? settings.bubbleAlpha : preset.bubbleAlpha
     };
-
-    const fadeOutBubble = () => {
-      const fadeStartTime = Date.now();
-      const fadeDuration = 500;
-
-      const fadeAnimate = () => {
-        const elapsed = Date.now() - fadeStartTime;
-        const progress = Math.min(elapsed / fadeDuration, 1);
-        const fadeProgress = 1 - progress;
-
-        bubbleText.alpha = fadeProgress;
-        bubble.bubbleBackground.alpha = fadeProgress * 0.7;
-        bubble.gradientSprite.alpha = fadeProgress;
-        if (progress < 1) {
-          requestAnimationFrame(fadeAnimate);
-        } else {
-          bubble.show = false;
-          this.removeBubble(bubble);
-          this.updateBubbleStack(bubble.eventId);
+  }
+  // Use visible glyph bounds instead of the font's advance and line box.
+  function inkBounds(text) {
+    text.updateText(false);
+    var canvas = text.canvas;
+    var data = text.context.getImageData(0, 0, canvas.width, canvas.height).data;
+    var left = canvas.width, right = -1, top = canvas.height, bottom = -1;
+    for (var y = 0; y < canvas.height; y++) {
+      for (var x = 0; x < canvas.width; x++) {
+        if (data[(y * canvas.width + x) * 4 + 3]) {
+          left = Math.min(left, x); right = Math.max(right, x);
+          top = Math.min(top, y); bottom = Math.max(bottom, y);
         }
-      };
-
-      requestAnimationFrame(fadeAnimate);
-    };
-
-    animateScaleAndFadeIn();
-
-    bubble.timeoutId = setTimeout(fadeOutBubble, bubble.time);
-  };
-
-  //----------------------------------------------------------------------//
-  Window_Bubbles.prototype.updateBubbleStack = function (eventId) {
-    const bubbles = Fugs.Bubbles[eventId];
-
-    if (!bubbles?.length) return;
-
-    const zoom = $gameMap.zoom ?? { x: 1, y: 1 };
-    const baseY = bubbles[0].targetEvent.screenY() * zoom.y - 48 * zoom.y;
-    let currentY = baseY;
-
-    for (const bubble of bubbles) {
-      if (!bubble.show) continue;
-
-      const x = Math.round(
-        bubble.targetEvent.screenX() * zoom.x - bubble.textWidth / 2
-      );
-      currentY -= bubble.textHeight + 12;
-      // console.log(
-      //   "Gradient Sprite Position:",
-      //   bubble.gradientSprite.x,
-      //   bubble.gradientSprite.y
-      // );
-      // console.log(
-      //   "bubble.bubbleText Position:",
-      //   bubble.bubbleText.x,
-      //   bubble.bubbleText.y
-      // );
-
-      Object.assign(bubble.bubbleText || {}, { x, y: currentY });
-      Object.assign(bubble.bubbleBackground || {}, {
-        x: x - 5,
-        y: currentY - 2,
-      });
-      Object.assign(bubble.gradientSprite || {}, {
-        x: x - 8,
-        y: currentY - 12,
-      });
-    }
-  };
-
-  //----------------------------------------------------------------------//
-  Window_Bubbles.prototype.easeOutBounce = function (t) {
-    if (t < 1 / 2.75) return 7.5625 * t * t;
-    if (t < 2 / 2.75) {
-      t -= 1.5 / 2.75;
-      return 7.5625 * t * t + 0.75;
-    }
-    if (t < 2.5 / 2.75) {
-      t -= 2.25 / 2.75;
-      return 7.5625 * t * t + 0.9375;
-    }
-    t -= 2.625 / 2.75;
-    return 7.5625 * t * t + 0.984375;
-  };
-
-  //----------------------------------------------------------------------//
-  Window_Bubbles.prototype.removeBubble = function (bubble) {
-    if (!bubble) return;
-
-    bubble.timeoutId && clearTimeout(bubble.timeoutId);
-
-    ["bubbleText", "bubbleBackground", "gradientSprite"].forEach((key) => {
-      if (bubble[key]) {
-        SceneManager._scene.removeChild(bubble[key]);
-        bubble[key].destroy();
       }
+    }
+    var resolution = text.resolution || 1;
+    if (right < left) return { width: 1, height: 1, x: 0, y: 0 };
+    return { width: (right-left+1)/resolution, height: (bottom-top+1)/resolution,
+      x: (canvas.width/2-(left+right+1)/2)/resolution,
+      y: (canvas.height/2-(top+bottom+1)/2)/resolution };
+  }
+  function background(width, height, fill) {
+    var canvas = document.createElement("canvas");
+    canvas.width = Math.ceil(width); canvas.height = Math.ceil(height);
+    var ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Chat bubbles require a 2D canvas context.");
+    var border = Math.min(settings.borderWidth, width/2, height/2);
+    var inset = border/2, w = width-inset, h = height-inset;
+    var r = settings.shape === "Square" ? 0 :
+      Math.min(settings.radius, (width-border)/2, (height-border)/2);
+    ctx.beginPath(); ctx.moveTo(inset+r, inset);
+    ctx.arcTo(w,inset,w,h,r); ctx.arcTo(w,h,inset,h,r);
+    ctx.arcTo(inset,h,inset,inset,r); ctx.arcTo(inset,inset,w,inset,r);
+    ctx.closePath();
+    if (fill.length === 1) ctx.fillStyle = cssColor(fill[0]);
+    else {
+      var gradient = ctx.createLinearGradient(0,0,width,height);
+      fill.forEach(function (color,i) {
+        gradient.addColorStop(i/(fill.length-1),cssColor(color));
+      });
+      ctx.fillStyle = gradient;
+    }
+    ctx.fill();
+    if (border) { ctx.lineWidth=border; ctx.strokeStyle=settings.borderColor; ctx.stroke(); }
+    var sprite = new PIXI.Sprite(PIXI.Texture.from(canvas));
+    sprite.anchor.set(0.5);
+    return sprite;
+  }
+  function target(id) {
+    if (id === 0) return $gamePlayer;
+    if (id < 0) return $gamePlayer.followers().follower(-id-1);
+    return $gameMap.event(id);
+  }
+  function remove(bubble) {
+    if (bubble.container.parent) bubble.container.parent.removeChild(bubble.container);
+    bubble.container.destroy({ children: true, texture: true, baseTexture: true });
+    var stack = bubbles[bubble.eventId];
+    if (stack) {
+      var index = stack.indexOf(bubble);
+      if (index >= 0) stack.splice(index,1);
+      if (!stack.length) delete bubbles[bubble.eventId];
+    }
+  }
+  function clear() {
+    Object.keys(bubbles).forEach(function (id) { bubbles[id].slice().forEach(remove); });
+  }
+  function show(id, duration, message) {
+    var scene = SceneManager._scene;
+    if (!(scene instanceof Scene_Map) || !message || !String(message).trim()) return;
+    if (!isFinite(id) || Math.floor(id) !== id) return;
+    var character = target(id);
+    if (!character) {
+      if (debugMode) console.warn("[ChatBubbles] No character for ID " + id);
+      return;
+    }
+    var appearance = style();
+    var text = new PIXI.Text(String(message),new PIXI.TextStyle({
+      fontFamily: settings.fontFamily, fontSize: settings.fontSize,
+      fill: appearance.text.length === 1 ? appearance.text[0] : appearance.text,
+      lineHeight: settings.lineHeight, padding: settings.padding,
+      wordWrap: settings.wrap, breakWords: true, align: "center",
+      wordWrapWidth: Math.max(1,Math.min(settings.wrapWidth,
+        Graphics.width-settings.widthMargin-settings.padding*2-settings.borderWidth*2-8))
+    }));
+    var ink = inkBounds(text);
+    text.anchor.set(0.5); text.position.set(ink.x,ink.y); text.alpha=settings.fontAlpha;
+    var width=Math.ceil(ink.width+settings.padding*2+settings.widthMargin+settings.borderWidth*2);
+    var height=Math.ceil(ink.height+settings.padding*2+settings.heightMargin+settings.borderWidth*2);
+    var container=new PIXI.Container(), bg;
+    try { bg=background(width,height,appearance.fill); }
+    catch (error) { text.destroy(true); throw error; }
+    bg.alpha=appearance.alpha;
+    container.addChild(bg); container.addChild(text);
+    var bubble={ eventId:id, target:character, scene:scene, container:container,
+      width:width, height:height, createdAt:Date.now(),
+      duration:number(duration,5000,1,2147483647),
+      offsetX:settings.offsetX, offsetY:settings.offsetY };
+    if (!bubbles[id]) bubbles[id]=[];
+    bubbles[id].unshift(bubble); scene.addChild(container); update(scene);
+  }
+  function bounce(t) {
+    if (t<1/2.75) return 7.5625*t*t;
+    if (t<2/2.75) { t-=1.5/2.75; return 7.5625*t*t+0.75; }
+    if (t<2.5/2.75) { t-=2.25/2.75; return 7.5625*t*t+0.9375; }
+    t-=2.625/2.75; return 7.5625*t*t+0.984375;
+  }
+  function update(scene) {
+    applyPending();
+    var now=Date.now();
+    Object.keys(bubbles).forEach(function (id) {
+      bubbles[id].slice().forEach(function (bubble) {
+        if (bubble.scene!==scene || now-bubble.createdAt>=bubble.duration) remove(bubble);
+      });
+      var stack=bubbles[id];
+      if (!stack || !stack.length) return;
+      var zoom=$gameMap.zoom || {x:1,y:1};
+      var zx=number(zoom.x,1,0.01,100), zy=number(zoom.y,1,0.01,100);
+      // Fit and clamp the stack as a group; clamping each row would overlap
+      // older bubbles at the top edge.
+      var naturalHeight=stack.reduce(function (sum,bubble) {
+        return sum+bubble.height;
+      },12*(stack.length-1));
+      var stackFit=Math.min(1,Math.max(1,Graphics.height-8)/naturalHeight);
+      var gap=12*stackFit;
+      var totalHeight=gap*(stack.length-1);
+      stack.forEach(function (bubble) {
+        bubble.fit=Math.min(stackFit,Math.max(1,Graphics.width-8)/bubble.width);
+        totalHeight+=bubble.height*bubble.fit;
+      });
+      var bottom=stack[0].target.screenY()*zy-48*zy+stack[0].offsetY;
+      var currentY=Math.max(totalHeight+4,Math.min(Graphics.height-4,bottom));
+      stack.forEach(function (bubble) {
+        var age=Math.max(0,now-bubble.createdAt);
+        var fit=bubble.fit;
+        var halfW=bubble.width*fit/2, halfH=bubble.height*fit/2;
+        var x=bubble.target.screenX()*zx+bubble.offsetX;
+        var y=currentY-halfH;
+        bubble.container.position.set(
+          Math.max(halfW+4,Math.min(Graphics.width-halfW-4,x)),
+          Math.max(halfH+4,Math.min(Graphics.height-halfH-4,y)));
+        currentY-=bubble.height*fit+gap;
+        var entrance=Math.min(300,bubble.duration/2), fade=Math.min(500,bubble.duration/2);
+        bubble.container.scale.set(fit*bounce(Math.min(age/entrance,1)));
+        bubble.container.alpha=Math.min(1,age/entrance,(bubble.duration-age)/fade);
+      });
     });
-
-    const bubbles = Fugs.Bubbles[bubble.eventId];
-    if (bubbles) {
-      const index = bubbles.indexOf(bubble);
-      if (index > -1) bubbles.splice(index, 1);
-      if (!bubbles.length) delete Fugs.Bubbles[bubble.eventId];
-    }
-  };
-
-  //----------------------------------------------------------------------//
-  //----------------------------------------------------------------------//
-  const _Scene_Map_update = Scene_Map.prototype.update;
-  Scene_Map.prototype.update = function () {
-    _Scene_Map_update.call(this);
-    this.updateChatBubbles();
-  };
-
-  Scene_Map.prototype.updateChatBubbles = function () {
-    for (let eventId in Fugs.Bubbles) {
-      if (Fugs.Bubbles[eventId].length > 0) {
-        Window_Bubbles.prototype.updateBubbleStack(parseInt(eventId));
-      }
-    }
-  };
-
-  const _Game_Interpreter_pluginCommand =
-    Game_Interpreter.prototype.pluginCommand;
-  Game_Interpreter.prototype.pluginCommand = function (command, args) {
-    _Game_Interpreter_pluginCommand.call(this, command, args);
-    if (command === "ShowChatBubble") {
-      let eventId, time, message;
-
-      if (
-        args.length >= 3 &&
-        !isNaN(parseFloat(args[0])) &&
-        !isNaN(parseFloat(args[1]))
-      ) {
-        eventId = parseFloat(args[0]);
-        time = parseFloat(args[1]) * 1000;
-        message = args.slice(2).join(" ");
-      } else if (args.length >= 2 && !isNaN(parseFloat(args[0]))) {
-        eventId = this._eventId || $gameMap._selectedEventId;
-        time = parseFloat(args[0]) * 1000;
-        message = args.slice(1).join(" ");
+  }
+  var mapUpdate=Scene_Map.prototype.update;
+  Scene_Map.prototype.update=function () { mapUpdate.call(this); update(this); };
+  ["stop","terminate","startEncounterEffect"].forEach(function (name) {
+    var original=Scene_Map.prototype[name];
+    Scene_Map.prototype[name]=function () {
+      clear();
+      if (original) return original.apply(this,arguments);
+    };
+  });
+  var setupMap=Game_Map.prototype.setup;
+  Game_Map.prototype.setup=function () { clear(); return setupMap.apply(this,arguments); };
+  function numeric(token) {
+    return typeof token==="string" && /^[+-]?(?:\d+\.?\d*|\.\d+)$/.test(token);
+  }
+  function commandShow(interpreter,args) {
+    var id=interpreter._eventId || 0, seconds=5, message;
+    var divider=args.indexOf("--");
+    if (divider>=0) {
+      var options=args.slice(0,divider);
+      message=args.slice(divider+1).join(" ");
+      var named=options.some(function (value) { return value.indexOf(":")>=0; });
+      if (named) {
+        for (var i=0;i<options.length;i++) {
+          var pair=options[i].split(":");
+          if (pair.length!==2 || !numeric(pair[1])) return;
+          if (pair[0]==="event") id=Number(pair[1]);
+          else if (pair[0]==="duration") seconds=Number(pair[1]);
+          else return;
+        }
       } else {
-        eventId = this._eventId || $gameMap._selectedEventId;
-        time = 5000;
-        message = args.join(" ");
+        if (options.length>2 || options.some(function (v) { return !numeric(v); })) return;
+        if (options.length===2) { id=Number(options[0]); seconds=Number(options[1]); }
+        else if (options.length===1) seconds=Number(options[0]);
       }
-
-      new Window_Bubbles(time, message, eventId);
+    } else if (args.length>=3 && numeric(args[0]) && numeric(args[1]) &&
+        Math.floor(Number(args[0]))===Number(args[0])) {
+      id=Number(args[0]); seconds=Number(args[1]); message=args.slice(2).join(" ");
+    } else if (args.length>=2 && numeric(args[0])) {
+      seconds=Number(args[0]); message=args.slice(1).join(" ");
+    } else message=args.join(" ");
+    if (seconds>0 && isFinite(seconds)) show(id,seconds*1000,message);
+  }
+  function commandStyle(args) {
+    var tokens=args.join(" ").replace(/\]\s*\[/g," ").replace(/[\[\]]/g,"").trim().split(/\s+/);
+    var task=tokens.shift(), delay=0;
+    if (numeric(tokens[0])) delay=number(tokens.shift(),0,0,2147483647);
+    var value=tokens.join(" ").replace(/^theme:\s*/i,"").trim();
+    if (task==="changeColor") {
+      var name=themeName(value);
+      if (!name) return;
+      pending.push({at:Date.now()+delay,apply:function () { settings.theme=name; }});
+    } else if (task==="changeFont" && value) {
+      if (value.toLowerCase()==="gamefont") value="GameFont";
+      pending.push({at:Date.now()+delay,apply:function () { settings.fontFamily=value; }});
     }
+    applyPending();
+  }
+  var pluginCommand=Game_Interpreter.prototype.pluginCommand;
+  Game_Interpreter.prototype.pluginCommand=function (command,args) {
+    pluginCommand.call(this,command,args);
+    if (command==="ShowChatBubble") commandShow(this,args);
+    else if (command==="ChatBubble") commandStyle(args);
   };
+  Fugs.ChatBubbles={show:show,clear:clear};
 })();
