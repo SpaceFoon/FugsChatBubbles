@@ -224,6 +224,13 @@ try {
     }
   }
 
+  if (!$SyncOnly) {
+    $metadataPath = Join-Path $repoRoot 'release-metadata.json'
+    if (!(Test-Path -LiteralPath $metadataPath -PathType Leaf)) { throw 'Add versioned release-metadata.json before publishing.' }
+    & node (Join-Path $PSScriptRoot 'Sync-PluginDirectory.js') --validate-metadata $metadataPath $Version
+    if ($LASTEXITCODE -ne 0) { throw 'Fix release metadata before publishing; no release was created.' }
+  }
+
   $script:githubLogin = Assert-GitHubAccess
 
   if ($SyncOnly) {

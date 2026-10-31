@@ -24,6 +24,14 @@ function compareVersions(left, right) {
   }
   return 0;
 }
+function validateReleaseMetadata(metadata, version) {
+  if (metadata?.schemaVersion !== 1 || metadata.version !== version || !['MV', 'MZ', 'MZ/MV'].includes(metadata.compatibility)) throw new Error('Release metadata schema, version, or compatibility is invalid');
+  if (typeof metadata.description !== 'string' || !metadata.description.trim()) throw new Error('Release metadata description is required');
+  for (const key of ['features', 'installation']) {
+    if (metadata[key] !== undefined && (!Array.isArray(metadata[key]) || !metadata[key].every(item => typeof item === 'string' && item.trim()))) throw new Error('Invalid release metadata ' + key);
+  }
+  return {compatibility: metadata.compatibility, description: metadata.description, ...(metadata.features === undefined ? {} : {features: metadata.features}), ...(metadata.installation === undefined ? {} : {installation: metadata.installation})};
+}
 async function updateDirectory(directory, release) {
   if (release.repository !== 'SpaceFoon/FugsChatBubbles' || release.slug !== 'fugs-chat-bubbles' || release.tagName !== `v${release.version}`) throw new Error('Unexpected release identity or tag');
   const zipUrl = `https://github.com/${release.repository}/releases/download/${release.tagName}/FugsChatBubbles-${release.tagName}.zip`;
@@ -43,7 +51,12 @@ async function updateDirectory(directory, release) {
   const headerVersion = /^\s*\*\s*@version\s+(\S+)/m.exec(bytes.toString('utf8'))?.[1];
   if (headerVersion && headerVersion !== release.version) throw new Error('Tagged plugin header does not match release version');
   const files = [{name: 'FugsChatBubbles.js', url, sha256: createHash('sha256').update(bytes).digest('hex')}];
-  const fields = {version: release.version, releaseTag: release.tagName, releaseZipUrl: zipUrl, downloadUrl: url, files};
+  const metadataUrl = `https://raw.githubusercontent.com/${release.repository}/${release.tagName}/release-metadata.json`;
+  const metadataResponse = await fetch(metadataUrl, {signal: AbortSignal.timeout(30000)});
+  let metadataFields = {};
+  if (metadataResponse.ok) metadataFields = validateReleaseMetadata(await metadataResponse.json(), release.version);
+  else if (metadataResponse.status !== 404 || compareVersions(release.version, '1.1.0') >= 0) throw new Error(`Could not read release metadata: HTTP ${metadataResponse.status}`);
+  const fields = {version: release.version, releaseTag: release.tagName, releaseZipUrl: zipUrl, downloadUrl: url, files, ...metadataFields};
   const changed = Object.entries(fields).some(([key, value]) => JSON.stringify(plugin[key]) !== JSON.stringify(value));
   if (changed) Object.assign(plugin, fields, {updatedAt: new Date().toISOString()});
   const readmePath = path.join(directory, 'README.md');
@@ -57,9 +70,14 @@ async function updateDirectory(directory, release) {
   if (updatedReadme !== readme) fs.writeFileSync(readmePath, updatedReadme);
   console.log(changed ? `Updated shared directory to ${release.tagName} with SHA-256` : `Directory already contains ${release.tagName} with matching SHA-256`);
 }
-module.exports = {compareVersions, updateDirectory};
+module.exports = {compareVersions, validateReleaseMetadata, updateDirectory};
 if (require.main === module) {
+  if (process.argv[2] === '--validate-metadata') {
+    validateReleaseMetadata(JSON.parse(fs.readFileSync(process.argv[3], 'utf8')), process.argv[4]);
+    console.log('Release metadata matches version ' + process.argv[4]);
+  } else {
   const [directory, eventPath] = process.argv.slice(2);
   if (!directory || !eventPath) throw new Error('Pass directory checkout and release JSON paths');
   updateDirectory(directory, JSON.parse(fs.readFileSync(eventPath, 'utf8'))).catch(error => { console.error(error.message); process.exitCode = 1; });
+  }
 }

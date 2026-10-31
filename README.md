@@ -126,7 +126,7 @@ The installer reuses your saved GitHub CLI login, checks write access to the plu
 
     git push origin v1.1.0
 
-The PC packages the exact tagged source into `release-dist/FugsChatBubbles-v1.1.0.zip`. Directory updates pin the JavaScript URL to that tag, calculate SHA-256, preserve reviewed metadata and maturity, and refuse version downgrades. Failed updates remain pending for retry. Existing tagged releases are reconciled on the first run for this directory target. Progress and retry errors are in `.local-release-automation/watcher.log`.
+The PC packages the exact tagged source into `release-dist/FugsChatBubbles-v1.1.0.zip`. Directory updates pin the JavaScript URL to that tag, calculate SHA-256, preserve maturity and refuse version downgrades. Before each release, update `release-metadata.json` to match the plugin version and supported engines; compatibility, description, features, and installation steps are synchronized from that exact tag. Releases 1.1.0 onward require this metadata so an old engine label cannot silently persist. Failed updates remain pending for retry. Existing tagged releases are reconciled on the first run for this directory target. Progress and retry errors are in `.local-release-automation/watcher.log`.
 
 To retry an existing release without rebuilding it:
 

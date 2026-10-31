@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "version": "1.1.0",
+  "compatibility": "MZ/MV",
+  "description": "Animated map speech bubbles for RPG Maker MV 1.6.1+ and MZ. Convert the next Show Text into a nonblocking bubble with supported text codes, themes, wrapping, and character tracking.",
+  "features": [
+    "Convert the next Show Text into a nonblocking bubble in MV or MZ",
+    "Engine variable/name/currency codes, icons, colors, and supported inline font changes",
+    "Centered multiline text, wrapping, stacking, and bounce/fade animations",
+    "Map bubbles follow events, the player, or followers",
+    "Unsupported message features fall back to normal dialogue",
+    "Preset themes and custom backgrounds; legacy direct commands remain available"
+  ],
+  "installation": [
+    "Download the release ZIP and copy FugsChatBubbles.js into your game's js/plugins folder.",
+    "Enable FugsChatBubbles in Plugin Manager. Requires MV 1.6.1+ with updated project runtime/core files, or MZ.",
+    "MV: add ChatBubble next event:current duration:5, followed by Show Text.",
+    "MZ: select Next Show Text as Bubble, followed by Show Text.",
+    "Use the normal Show Text editor for dialogue and supported text codes. See the README for fallbacks and compatibility limits."
+  ]
+}
