@@ -12,6 +12,8 @@ Verified 2026-10-31 against the committed Sitebase deployment script, the public
 
 Deployment evidence: Sitebase's `SITE4_DOMAIN`, `SITE4_REPO`, `SITE4_BRANCH`, `SITE4_DIST_PATH`, and `SITE4_SUBAPP_*` variables identify the domain, source repos, and output directories. Its `main()` calls `deploy_frontend_repo` and `deploy_frontend_subpath_repo` with those variables. The public `https://fugsplugins.com/healthz` returned build `a8977af`, matching `SpaceFoon/fugs-plugins` commit `a8977af4e4c0b46514884a393cb20a138e1c410c`. A public request does not establish the private server's current configuration; no VPS access was performed.
 
+The release ZIP packages committed Git bytes through `git archive`, so Windows checkout line endings cannot change the JavaScript hash relative to the tagged download.
+
 ## Directory update
 
 `Release-Plugin.ps1 -SyncOnly` verifies the existing ZIP asset, clones the shared directory's default branch, and invokes `Sync-PluginDirectory.js` locally. The helper updates the Chat Bubbles entry, pins its JavaScript URL to the release tag, calculates SHA-256 from the tagged bytes, and refreshes the generated README table. It preserves maturity, refuses downgrades, and makes repeated matching updates a no-op. For releases 1.1.0 onward, versioned `release-metadata.json` at the same tag explicitly supplies engine compatibility, description, features, and installation steps. Older releases without that file retain existing editorial metadata. The normal release command validates metadata before publishing, and sync validates it again against the tag. The PowerShell script pushes a normal commit with `[skip ci]`; it never dispatches an Actions event or opens a PR in the website repo. Push conflicts fail safely and the watcher retries.

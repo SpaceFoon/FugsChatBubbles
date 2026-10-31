@@ -123,11 +123,11 @@ function Publish-PluginRelease {
   $stagePath = Join-Path $scratchPath $shortName
   New-Item -ItemType Directory -Path $stagePath | Out-Null
 
-  foreach ($file in @('FugsChatBubbles.js', 'LICENSE', 'README.md')) {
-    $source = Join-Path $repoRoot $file
-    if (!(Test-Path -LiteralPath $source -PathType Leaf)) { throw "Required release file is missing: $file" }
-    Copy-Item -LiteralPath $source -Destination $stagePath
-  }
+  # Package committed bytes so Windows autocrlf does not alter the tagged plugin.
+  $sourceArchive = Join-Path $scratchPath 'source.zip'
+  Invoke-Git $repoRoot @('archive', '--format=zip', "--prefix=$shortName/", "--output=$sourceArchive", $head, '--', 'FugsChatBubbles.js', 'LICENSE', 'README.md') | Out-Null
+  Add-Type -AssemblyName System.IO.Compression.FileSystem
+  [IO.Compression.ZipFile]::ExtractToDirectory($sourceArchive, $scratchPath)
 
   $readme = [IO.File]::ReadAllText((Join-Path $repoRoot 'README.md'))
   $readme = $readme -replace '(?m)^#{1,6}\s*', ''
