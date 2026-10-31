@@ -66,7 +66,7 @@ function Read-State {
       $tags[$property.Name] = [string]$property.Value
     }
   }
-  return @{ initialized = [bool]$document.initialized; tags = $tags }
+  return @{ initialized = ([bool]$document.initialized -and $document.directoryRepo -eq 'SpaceFoon/RPG-Maker-MV-MZ-plugins'); tags = $tags; directoryRepo = $document.directoryRepo }
 }
 
 function Save-State {
@@ -105,7 +105,7 @@ function Invoke-TagRelease {
   param([string]$Tag, [string]$Version, [string]$Commit)
 
   if (Test-ReleaseExists -Tag $Tag) {
-    Write-Log "Release $Tag already exists; retrying its catalog sync."
+    Write-Log "Release $Tag already exists; retrying its plugin-directory update."
     & $releaseScript -Version $Version -SyncOnly 6>&1 | ForEach-Object { Write-Log ([string]$_) }
     return
   }
@@ -151,7 +151,7 @@ function Initialize-WatcherState {
   }
 
   $remoteTags = Get-RemoteTags
-  $state = @{ initialized = $true; tags = @{} }
+  $state = @{ initialized = $true; tags = @{}; directoryRepo = 'SpaceFoon/RPG-Maker-MV-MZ-plugins' }
   foreach ($tag in $remoteTags.Keys) { $state.tags[$tag] = $remoteTags[$tag] }
   Save-State $state
   Write-Log "Initialized with $($remoteTags.Count) existing version tag(s). New pushed version tags will be published locally."

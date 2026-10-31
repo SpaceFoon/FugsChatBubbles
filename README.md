@@ -114,37 +114,31 @@ When a rendered character sprite is available, its actual transformed head posit
 
 For script calls, `Fugs.ChatBubbles.show(eventId, durationMs, message)` shows a map bubble and `Fugs.ChatBubbles.clear()` removes all bubbles. An optional fourth argument `true` uses the formatted Show Text renderer; callers must ensure the Window and IconSet system images are loaded first. It returns `false` if formatted text cannot be rendered, such as when it exceeds a safety limit. The original direct commands and default script calls retain their plain-text Pixi renderer.
 
-## Releases and plugin directory listing
+## Releases and the shared plugin directory
 
-This section is for maintainers. It explains how a release gets from this repository into the Fugs Plugins directory.
+The Windows watcher builds and publishes releases locally. It then clones [`SpaceFoon/RPG-Maker-MV-MZ-plugins`](https://github.com/SpaceFoon/RPG-Maker-MV-MZ-plugins), updates `plugins.json` and its generated README table locally, and pushes those two files directly. No workflow dispatch or website PR is part of this release path. Directory commits include `[skip ci]` so the directory repository's legacy push CI does not execute for these updates.
 
-Release automation runs on your Windows PC. It does not use GitHub Actions or any GitHub runner. The PC checks GitHub for pushed version tags, then builds the ZIP and publishes the release and catalog pull request from a local checkout.
-
-Install it once from PowerShell:
+Install once under your normal Windows account:
 
     powershell -ExecutionPolicy Bypass -File .\scripts\Install-LocalReleaseAutomation.ps1
 
-The installer signs in through the browser only if the saved GitHub CLI login is missing or invalid, checks that your account can write to this repository and the private [`SpaceFoon/fugs-plugins`](https://github.com/SpaceFoon/fugs-plugins) repository, then registers a Task Scheduler job for the current Windows account. Git uses the same locally saved login. No account token is copied into the repository or an Actions secret.
-
-While you are signed in and the PC is on, the watcher checks for tags every five minutes. On first start it retries the catalog sync for the latest published release, then records existing tags so old releases are not republished. After that, push a version tag to start a release:
-
-The task uses the installing Windows user's saved credentials. Progress, release output, and retry errors are recorded in `.local-release-automation/watcher.log`.
+The installer reuses your saved GitHub CLI login, checks write access to the plugin and directory repositories, and registers the local Task Scheduler watcher. While the PC is on and you are signed in, it polls every five minutes. Push a version tag after committing and pushing the matching plugin version and changelog:
 
     git push origin v1.1.0
 
-The PC checks out that exact tag locally, verifies the plugin version, creates `release-dist/FugsChatBubbles-v1.1.0.zip`, uploads it as a GitHub release, and opens a pull request updating the private plugin directory. Merge the pull request for the public directory listing to change. If the PC is off, it catches up when the watcher next runs.
+The PC packages the exact tagged source into `release-dist/FugsChatBubbles-v1.1.0.zip`. Directory updates pin the JavaScript URL to that tag, calculate SHA-256, preserve reviewed metadata and maturity, and refuse version downgrades. Failed updates remain pending for retry. Existing tagged releases are reconciled on the first run for this directory target. Progress and retry errors are in `.local-release-automation/watcher.log`.
 
-The release and directory changes are made through the GitHub CLI using the Windows account's saved login. GitHub still needs to authorize publishing and private-repository writes, so a fresh sign-in is needed if that saved login is revoked or becomes invalid; it is not requested for every release.
-
-To manually retry only the directory update for an existing release, run:
+To retry an existing release without rebuilding it:
 
     powershell -ExecutionPolicy Bypass -File .\scripts\Release-Plugin.ps1 -Version 1.0.2 -SyncOnly
 
-To remove the local watcher task, run:
+The plugin directory and website deployment are separate. [`SpaceFoon/sitebase`](https://github.com/SpaceFoon/sitebase) deploys `fugsplugins.com` using `SpaceFoon/fugs-plugins` for the main site and `SpaceFoon/fugg-audio-plugin-site` for `/FugsAudioEx`. The website's integration with the shared manifest is pending; a directory push does not itself deploy or update the currently served website. See [the verified deployment and sync details](docs/RELEASE-SYNC.md).
+
+Remove the local task with:
 
     powershell -ExecutionPolicy Bypass -File .\scripts\Uninstall-LocalReleaseAutomation.ps1
 
-This removes only the scheduled task. Local ZIPs, log, and watcher state are kept. Manual one-shot releases are also available with `scripts/Release-Plugin.ps1`.
+The removal preserves ZIPs, logs, and state. Manual releases remain available through `scripts/Release-Plugin.ps1`.
 
 ## Verification
 
