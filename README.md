@@ -2,7 +2,7 @@
 
 **Version:** 1.1.0 · **Engines:** RPG Maker MV / MZ · **License:** [GNU GPL-3.0](LICENSE)
 
-MV runtime verified. MZ command adapters are tested; a complete MZ runtime playtest is still required.
+Requires RPG Maker MV 1.6.1 or newer, or MZ. MV 1.6.1 updated NW.js to support ES2017. Existing games must have the matching updated runtime/core files in the game project; updating the editor alone does not update an older game's files. MV runtime verified. MZ command adapters are tested; a complete MZ runtime playtest is still required.
 
 Map speech bubbles follow events, the player, or followers. Messages stack, bounce in, and fade out. Text and backgrounds support themes and gradients.
 

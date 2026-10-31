@@ -11,6 +11,7 @@
 - Expanded the MV harness to load real engine Bitmap/Window_Base code and system images for converted-text checks.
 - Review follow-up: preserve unsupported/custom text codes by falling back to the complete original Show Text, instead of stripping their names and displaying leftover parameters.
 - Catch formatted-rendering failures so oversized Show Text falls back and direct script calls return `false` instead of leaking an exception.
+- Use block-scoped `let` declarations in the plugin. RPG Maker MV 1.6.1 updated NW.js for ES2017; existing game projects need their runtime/core files updated separately.
 - Corrected the wrapped-line limit boundary and reject oversized unwrapped lines/font-size codes before excessive measurement/allocation.
 - Expanded to 170 passing checks, including native MV interpreter execution, normal-message waits, choice callbacks, formatted texture cleanup, and actual scene rendering; allowed NW to shut down before test scratch cleanup.
 

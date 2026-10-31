@@ -176,6 +176,9 @@
  * Introduction
  * ============================================================================
  *
+ * Requires RPG Maker MV 1.6.1+ or MZ. For an older existing MV project,
+ * update its runtime/core files before using this plugin.
+ *
  * I wanted chat windows like ff7 so I made this.
  *
  * Some conversion is better suited to bubbles that don't interfere with the
@@ -280,25 +283,25 @@
 
 (function () {
   "use strict";
-  var params = PluginManager.parameters("FugsChatBubbles");
-  var debugMode = params["Debug Mode"] === "true";
-  var Fugs = window.Fugs = window.Fugs || {};
-  var bubbles = Fugs.Bubbles = {};
-  var pending = [];
-  var colorContext = document.createElement("canvas").getContext("2d");
+  let params = PluginManager.parameters("FugsChatBubbles");
+  let debugMode = params["Debug Mode"] === "true";
+  let Fugs = window.Fugs = window.Fugs || {};
+  let bubbles = Fugs.Bubbles = {};
+  let pending = [];
+  let colorContext = document.createElement("canvas").getContext("2d");
   function number(value, fallback, min, max) {
-    var n = value === "" || value == null ? fallback : Number(value);
+    let n = value === "" || value == null ? fallback : Number(value);
     if (!isFinite(n)) n = fallback;
     return Math.max(min, Math.min(max, n));
   }
   function colors(value, fallback) {
-    var result;
+    let result;
     try { result = JSON.parse(value); } catch (ignore) {}
     if (!Array.isArray(result)) {
       // Commas inside rgba()/hsl() belong to that color, not the list.
       result = [];
-      var input = String(value || fallback), depth = 0, start = 0;
-      for (var i = 0; i < input.length; i++) {
+      let input = String(value || fallback), depth = 0, start = 0;
+      for (let i = 0; i < input.length; i++) {
         if (input[i] === "(") depth++;
         else if (input[i] === ")") depth = Math.max(0, depth - 1);
         else if (input[i] === "," && depth === 0) {
@@ -325,7 +328,7 @@
   function cssColor(value) {
     return String(value).replace(/^0x([a-f0-9]{6})$/i, "#$1");
   }
-  var THEMES = {
+  let THEMES = {
     WhiteBlack: {
       bubbleColors: ["#FFFFFF"],
       textColors: ["#000000"],
@@ -410,7 +413,7 @@
   };
 
 
-  var settings = {
+  let settings = {
     theme: params.Theme || "Dark", fontFamily: params["Font Family"] ||
       (typeof Utils !== "undefined" && Utils.RPGMAKER_NAME === "MZ" ? "rmmz-mainfont" : "GameFont"),
     fontSize: number(params["Font Size"], 28, 1, 256),
@@ -439,7 +442,7 @@
     })[0];
   }
   function applyPending() {
-    var now = Date.now();
+    let now = Date.now();
     pending = pending.filter(function (change) {
       if (change.at > now) return true;
       change.apply(); return false;
@@ -447,8 +450,8 @@
   }
   function style() {
     applyPending();
-    var preset = THEMES[themeName(settings.theme)];
-    var custom = String(settings.theme).toLowerCase() === "custom";
+    let preset = THEMES[themeName(settings.theme)];
+    let custom = String(settings.theme).toLowerCase() === "custom";
     return {
       fill: custom || !preset ? settings.bubbleColors : preset.bubbleColors,
       text: custom || !preset ? settings.fontColors : preset.textColors,
@@ -458,31 +461,31 @@
   // Use visible glyph bounds instead of the font's advance and line box.
   function inkBounds(text) {
     text.updateText(false);
-    var canvas = text.canvas;
-    var data = text.context.getImageData(0, 0, canvas.width, canvas.height).data;
-    var left = canvas.width, right = -1, top = canvas.height, bottom = -1;
-    for (var y = 0; y < canvas.height; y++) {
-      for (var x = 0; x < canvas.width; x++) {
+    let canvas = text.canvas;
+    let data = text.context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let left = canvas.width, right = -1, top = canvas.height, bottom = -1;
+    for (let y = 0; y < canvas.height; y++) {
+      for (let x = 0; x < canvas.width; x++) {
         if (data[(y * canvas.width + x) * 4 + 3]) {
           left = Math.min(left, x); right = Math.max(right, x);
           top = Math.min(top, y); bottom = Math.max(bottom, y);
         }
       }
     }
-    var resolution = text.resolution || 1;
+    let resolution = text.resolution || 1;
     if (right < left) return { width: 1, height: 1, x: 0, y: 0 };
     return { width: (right-left+1)/resolution, height: (bottom-top+1)/resolution,
       x: (canvas.width/2-(left+right+1)/2)/resolution,
       y: (canvas.height/2-(top+bottom+1)/2)/resolution };
   }
   function background(width, height, fill) {
-    var canvas = document.createElement("canvas");
+    let canvas = document.createElement("canvas");
     canvas.width = Math.ceil(width); canvas.height = Math.ceil(height);
-    var ctx = canvas.getContext("2d");
+    let ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("Chat bubbles require a 2D canvas context.");
-    var border = Math.min(settings.borderWidth, width/2, height/2);
-    var inset = border/2, w = width-inset, h = height-inset;
-    var r = settings.shape === "Square" ? 0 :
+    let border = Math.min(settings.borderWidth, width/2, height/2);
+    let inset = border/2, w = width-inset, h = height-inset;
+    let r = settings.shape === "Square" ? 0 :
       Math.min(settings.radius, (width-border)/2, (height-border)/2);
     ctx.beginPath(); ctx.moveTo(inset+r, inset);
     ctx.arcTo(w,inset,w,h,r); ctx.arcTo(w,h,inset,h,r);
@@ -490,7 +493,7 @@
     ctx.closePath();
     if (fill.length === 1) ctx.fillStyle = cssColor(fill[0]);
     else {
-      var gradient = ctx.createLinearGradient(0,0,width,height);
+      let gradient = ctx.createLinearGradient(0,0,width,height);
       fill.forEach(function (color,i) {
         gradient.addColorStop(i/(fill.length-1),cssColor(color));
       });
@@ -498,24 +501,24 @@
     }
     ctx.fill();
     if (border) { ctx.lineWidth=border; ctx.strokeStyle=settings.borderColor; ctx.stroke(); }
-    var sprite = new PIXI.Sprite(PIXI.Texture.from(canvas));
+    let sprite = new PIXI.Sprite(PIXI.Texture.from(canvas));
     sprite.anchor.set(0.5);
     return sprite;
   }
   // Use the game's conversion and escape handlers without creating another
   // Window_Message or touching $gameMessage. Layout is local to each bubble.
   function richText(message, appearance) {
-    var bitmap = new Bitmap(1, 1);
-    var win = Object.create(Window_Base.prototype);
+    let bitmap = new Bitmap(1, 1);
+    let win = Object.create(Window_Base.prototype);
     Object.defineProperty(win, "contents", {value: bitmap});
     Object.defineProperty(win, "windowskin", {value: ImageManager.loadSystem("Window")});
-    var properties = ["fontFace", "fontSize", "fontBold", "fontItalic",
+    let properties = ["fontFace", "fontSize", "fontBold", "fontItalic",
       "textColor", "outlineColor", "outlineWidth", "paintOpacity"];
-    var rows = [], row = {runs: [], width: 0, height: settings.lineHeight};
-    var limit = Math.max(1, Math.min(settings.wrapWidth,
+    let rows = [], row = {runs: [], width: 0, height: settings.lineHeight};
+    let limit = Math.max(1, Math.min(settings.wrapWidth,
       Graphics.width-settings.widthMargin-settings.padding*2-settings.borderWidth*2-8));
     function snapshot() {
-      var result = {};
+      let result = {};
       properties.forEach(function (key) { result[key] = bitmap[key]; });
       return result;
     }
@@ -525,8 +528,8 @@
       if (rows.length >= 256) throw new Error("Bubble exceeds 256 lines.");
     }
     function add(run) {
-      var previous = row.runs[row.runs.length-1];
-      var merge = run.text !== undefined && previous && previous.text !== undefined &&
+      let previous = row.runs[row.runs.length-1];
+      let merge = run.text !== undefined && previous && previous.text !== undefined &&
         properties.every(function (key) { return previous.style[key] === run.style[key]; });
       if (merge) run.width = bitmap.measureTextWidth(previous.text+run.text)-previous.width;
       if (settings.wrap && row.width && row.width+run.width > limit) nextRow();
@@ -542,27 +545,27 @@
       if (row.width > 8184) throw new Error("Bubble line exceeds safe bitmap width.");
     }
     win.processDrawIcon = function (index, state) {
-      var size = typeof ImageManager.iconWidth === "number" ? ImageManager.iconWidth : Window_Base._iconWidth;
+      let size = typeof ImageManager.iconWidth === "number" ? ImageManager.iconWidth : Window_Base._iconWidth;
       add({icon: index, width: size+4, height: size+4});
       state.x = row.width;
     };
     try {
       bitmap.fontFace = fontFamily(); bitmap.fontSize = settings.fontSize;
       bitmap.textColor = cssColor(appearance.text[0]); bitmap.outlineWidth = 0;
-      var state = {text: win.convertEscapeCharacters(String(message)), index: 0, x: 0, y: 0, left: 0};
+      let state = {text: win.convertEscapeCharacters(String(message)), index: 0, x: 0, y: 0, left: 0};
       if (state.text.length > 16384) throw new Error("Bubble exceeds 16384 characters.");
       while (state.index < state.text.length) {
-        var c = state.text[state.index++];
+        let c = state.text[state.index++];
         if (c === "\n" || c === "\f") nextRow();
         else if (c === "\x1b") {
-          var match = /^[\$\.\|\^!><\{\}\\]|^[A-Z]+/i.exec(state.text.slice(state.index));
+          let match = /^[\$\.\|\^!><\{\}\\]|^[A-Z]+/i.exec(state.text.slice(state.index));
           if (match) {
             state.index += match[0].length;
             state.x = row.width; state.y = 0;
             // Message waits/input have no meaning for simultaneous instant bubbles.
             if (!/^[\$\.\|\^!><]$/.test(match[0])) {
-              var code = match[0].toUpperCase();
-              var nativeSize = code === "FS" && typeof Utils !== "undefined" && Utils.RPGMAKER_NAME === "MZ";
+              let code = match[0].toUpperCase();
+              let nativeSize = code === "FS" && typeof Utils !== "undefined" && Utils.RPGMAKER_NAME === "MZ";
               if (!/^(C|I|\{|\})$/.test(code) && !nativeSize) {
                 throw new Error("Text code requires normal dialogue: " + code);
               }
@@ -584,7 +587,7 @@
           // Keep words together; split words only when they exceed the line width.
           if (settings.wrap && !/\s/.test(c) &&
               (state.index === 1 || /[\s\]]/.test(state.text[state.index-2]))) {
-            var word = c + (/^[^\s\x1b]*/.exec(state.text.slice(state.index)) || [""])[0];
+            let word = c + (/^[^\s\x1b]*/.exec(state.text.slice(state.index)) || [""])[0];
             if (row.width && bitmap.measureTextWidth(word) <= limit &&
                 row.width+bitmap.measureTextWidth(word) > limit) nextRow();
           }
@@ -595,15 +598,15 @@
       if (!rows.some(function (r) { return r.runs.some(function (run) {
         return run.icon !== undefined || /\S/.test(run.text || "");
       }); })) throw new Error("Bubble has no visible text.");
-      var width = Math.ceil(rows.reduce(function (w, r) { return Math.max(w, r.width); }, 1))+8;
-      var height = Math.ceil(rows.reduce(function (h, r) { return h+r.height; }, 0))+8;
+      let width = Math.ceil(rows.reduce(function (w, r) { return Math.max(w, r.width); }, 1))+8;
+      let height = Math.ceil(rows.reduce(function (h, r) { return h+r.height; }, 0))+8;
       if (width > 8192 || height > 8192 || width*height > 4194304) {
         throw new Error("Bubble text exceeds safe bitmap size.");
       }
       bitmap.resize(width, height);
-      var y = 4;
+      let y = 4;
       rows.forEach(function (r) {
-        var x = (width-r.width)/2;
+        let x = (width-r.width)/2;
         r.runs.forEach(function (run) {
           if (run.icon !== undefined) win.drawIcon(run.icon, x+2, y+2);
           else {
@@ -615,10 +618,10 @@
         y += r.height;
       });
       // Copy so the sprite owns its texture independently of the engine Bitmap.
-      var canvas = document.createElement("canvas");
+      let canvas = document.createElement("canvas");
       canvas.width = width; canvas.height = height;
       canvas.getContext("2d").drawImage(bitmap.canvas || bitmap._canvas, 0, 0);
-      var sprite = new PIXI.Sprite(PIXI.Texture.from(canvas));
+      let sprite = new PIXI.Sprite(PIXI.Texture.from(canvas));
       sprite.canvas = canvas; sprite.context = canvas.getContext("2d");
       sprite.updateText = function () {};
       return sprite;
@@ -634,7 +637,7 @@
   }
   function target(id) {
     if (id === 0) return $gamePlayer;
-    var character = id < 0 ? $gamePlayer.followers().follower(-id-1) : $gameMap.event(id);
+    let character = id < 0 ? $gamePlayer.followers().follower(-id-1) : $gameMap.event(id);
     if (!character || character._erased ||
         (id < 0 && character.isVisible && !character.isVisible())) return null;
     return character;
@@ -647,27 +650,27 @@
     return settings.fontFamily;
   }
   function headPosition(scene, character) {
-    var sprites = scene._spriteset && scene._spriteset._characterSprites;
-    var sprite = sprites && sprites.filter(function (entry) {
+    let sprites = scene._spriteset && scene._spriteset._characterSprites;
+    let sprite = sprites && sprites.filter(function (entry) {
       return entry._character === character;
     })[0];
     if (sprite) {
-      var height = sprite.patternHeight ? sprite.patternHeight() : 48;
+      let height = sprite.patternHeight ? sprite.patternHeight() : 48;
       if (!isFinite(height) || height <= 0) height = 48;
       // Project from the actual sprite into the bubble layer. This includes
       // camera scale, translation, shake, and nested map-container transforms.
       return scene.toLocal(sprite.toGlobal(new PIXI.Point(0, -height)));
     }
-    var zoom = $gameMap.zoom || { x: 1, y: 1 };
+    let zoom = $gameMap.zoom || { x: 1, y: 1 };
     return new PIXI.Point(character.screenX() * number(zoom.x,1,0.01,100),
       (character.screenY()-48) * number(zoom.y,1,0.01,100));
   }
   function remove(bubble) {
     if (bubble.container.parent) bubble.container.parent.removeChild(bubble.container);
     bubble.container.destroy({ children: true, texture: true, baseTexture: true });
-    var stack = bubbles[bubble.eventId];
+    let stack = bubbles[bubble.eventId];
     if (stack) {
-      var index = stack.indexOf(bubble);
+      let index = stack.indexOf(bubble);
       if (index >= 0) stack.splice(index,1);
       if (!stack.length) delete bubbles[bubble.eventId];
     }
@@ -676,18 +679,18 @@
     Object.keys(bubbles).forEach(function (id) { bubbles[id].slice().forEach(remove); });
   }
   function show(id, duration, message, formatted) {
-    var scene = SceneManager._scene;
+    let scene = SceneManager._scene;
     if (!(scene instanceof Scene_Map) || !message || !String(message).trim()) return;
     if (!isFinite(id) || Math.floor(id) !== id) return;
-    var lifetime = duration == null ? 5000 : Number(duration);
+    let lifetime = duration == null ? 5000 : Number(duration);
     if (!isFinite(lifetime) || lifetime <= 0) return;
-    var character = target(id);
+    let character = target(id);
     if (!character) {
       if (debugMode) console.warn("[ChatBubbles] No character for ID " + id);
       return;
     }
-    var appearance = style();
-    var text = formatted ? richText(message, appearance) : new PIXI.Text(String(message),new PIXI.TextStyle({
+    let appearance = style();
+    let text = formatted ? richText(message, appearance) : new PIXI.Text(String(message),new PIXI.TextStyle({
       fontFamily: fontFamily(), fontSize: settings.fontSize,
       fill: appearance.text.length === 1 ? appearance.text[0] : appearance.text,
       lineHeight: settings.lineHeight, padding: settings.padding,
@@ -696,18 +699,18 @@
         Graphics.width-settings.widthMargin-settings.padding*2-settings.borderWidth*2-8))
     }));
     if (!text) return false;
-    var ink;
+    let ink;
     try { ink = inkBounds(text); }
     catch (error) { text.destroy(true); throw error; }
     text.anchor.set(0.5); text.position.set(ink.x,ink.y); text.alpha=settings.fontAlpha;
-    var width=Math.ceil(ink.width+settings.padding*2+settings.widthMargin+settings.borderWidth*2);
-    var height=Math.ceil(ink.height+settings.padding*2+settings.heightMargin+settings.borderWidth*2);
-    var container=new PIXI.Container(), bg;
+    let width=Math.ceil(ink.width+settings.padding*2+settings.widthMargin+settings.borderWidth*2);
+    let height=Math.ceil(ink.height+settings.padding*2+settings.heightMargin+settings.borderWidth*2);
+    let container=new PIXI.Container(), bg;
     try { bg=background(width,height,appearance.fill); }
     catch (error) { text.destroy(true); throw error; }
     bg.alpha=appearance.alpha;
     container.addChild(bg); container.addChild(text);
-    var bubble={ eventId:id, target:character, scene:scene, container:container,
+    let bubble={ eventId:id, target:character, scene:scene, container:container,
       width:width, height:height, createdAt:Date.now(),
       duration:Math.min(lifetime,2147483647),
       offsetX:settings.offsetX, offsetY:settings.offsetY };
@@ -723,77 +726,77 @@
   }
   function update(scene) {
     applyPending();
-    var now=Date.now();
+    let now=Date.now();
     Object.keys(bubbles).forEach(function (id) {
       bubbles[id].slice().forEach(function (bubble) {
-        var currentTarget = target(bubble.eventId);
+        let currentTarget = target(bubble.eventId);
         if (bubble.scene!==scene || now-bubble.createdAt>=bubble.duration ||
             !currentTarget || currentTarget!==bubble.target) remove(bubble);
       });
-      var stack=bubbles[id];
+      let stack=bubbles[id];
       if (!stack || !stack.length) return;
-      var head=headPosition(scene,stack[0].target);
+      let head=headPosition(scene,stack[0].target);
       // Fit and clamp the stack as a group; clamping each row would overlap
       // older bubbles at the top edge.
-      var naturalHeight=stack.reduce(function (sum,bubble) {
+      let naturalHeight=stack.reduce(function (sum,bubble) {
         return sum+bubble.height;
       },12*(stack.length-1));
-      var stackFit=Math.min(1,Math.max(1,Graphics.height-8)/naturalHeight);
-      var gap=12*stackFit;
-      var totalHeight=gap*(stack.length-1);
+      let stackFit=Math.min(1,Math.max(1,Graphics.height-8)/naturalHeight);
+      let gap=12*stackFit;
+      let totalHeight=gap*(stack.length-1);
       stack.forEach(function (bubble) {
         bubble.fit=Math.min(stackFit,Math.max(1,Graphics.width-8)/bubble.width);
         totalHeight+=bubble.height*bubble.fit;
       });
-      var bottom=head.y+stack[0].offsetY;
-      var currentY=Math.max(totalHeight+4,Math.min(Graphics.height-4,bottom));
+      let bottom=head.y+stack[0].offsetY;
+      let currentY=Math.max(totalHeight+4,Math.min(Graphics.height-4,bottom));
       stack.forEach(function (bubble) {
-        var age=Math.max(0,now-bubble.createdAt);
-        var fit=bubble.fit;
-        var halfW=bubble.width*fit/2, halfH=bubble.height*fit/2;
-        var x=head.x+bubble.offsetX;
-        var y=currentY-halfH;
+        let age=Math.max(0,now-bubble.createdAt);
+        let fit=bubble.fit;
+        let halfW=bubble.width*fit/2, halfH=bubble.height*fit/2;
+        let x=head.x+bubble.offsetX;
+        let y=currentY-halfH;
         bubble.container.position.set(
           Math.max(halfW+4,Math.min(Graphics.width-halfW-4,x)),
           Math.max(halfH+4,Math.min(Graphics.height-halfH-4,y)));
         currentY-=bubble.height*fit+gap;
-        var entrance=Math.min(300,bubble.duration/2), fade=Math.min(500,bubble.duration/2);
+        let entrance=Math.min(300,bubble.duration/2), fade=Math.min(500,bubble.duration/2);
         bubble.container.scale.set(fit*bounce(Math.min(age/entrance,1)));
         bubble.container.alpha=Math.min(1,age/entrance,(bubble.duration-age)/fade);
       });
     });
   }
-  var mapUpdate=Scene_Map.prototype.update;
+  let mapUpdate=Scene_Map.prototype.update;
   Scene_Map.prototype.update=function () { mapUpdate.call(this); update(this); };
   ["stop","terminate","startEncounterEffect"].forEach(function (name) {
-    var original=Scene_Map.prototype[name];
+    let original=Scene_Map.prototype[name];
     Scene_Map.prototype[name]=function () {
       clear();
       if (original) return original.apply(this,arguments);
     };
   });
-  var setupMap=Game_Map.prototype.setup;
+  let setupMap=Game_Map.prototype.setup;
   Game_Map.prototype.setup=function () { clear(); return setupMap.apply(this,arguments); };
   function numeric(token) {
     return typeof token==="string" && /^[+-]?(?:\d+\.?\d*|\.\d+)$/.test(token);
   }
   function commandShow(interpreter,args) {
-    var id=interpreter._eventId || 0, seconds=5, message;
-    var divider=args.indexOf("--");
+    let id=interpreter._eventId || 0, seconds=5, message;
+    let divider=args.indexOf("--");
     if (divider >= 0) {
-      var prefix = args.slice(0,divider);
-      var optionPrefix = prefix.every(numeric) || prefix.some(function (token) {
+      let prefix = args.slice(0,divider);
+      let optionPrefix = prefix.every(numeric) || prefix.some(function (token) {
         return /^(event|duration):/.test(token);
       });
       if (!optionPrefix) divider = -1; // Ordinary dialogue may contain "--".
     }
     if (divider>=0) {
-      var options=args.slice(0,divider);
+      let options=args.slice(0,divider);
       message=args.slice(divider+1).join(" ");
-      var named=options.some(function (value) { return value.indexOf(":")>=0; });
+      let named=options.some(function (value) { return value.indexOf(":")>=0; });
       if (named) {
-        for (var i=0;i<options.length;i++) {
-          var pair=options[i].split(":");
+        for (let i=0;i<options.length;i++) {
+          let pair=options[i].split(":");
           if (pair.length!==2 || !numeric(pair[1])) return;
           if (pair[0]==="event") id=Number(pair[1]);
           else if (pair[0]==="duration") seconds=Number(pair[1]);
@@ -813,12 +816,12 @@
     if (seconds>0 && isFinite(seconds)) show(id,seconds*1000,message);
   }
   function commandStyle(args) {
-    var tokens=args.join(" ").replace(/\]\s*\[/g," ").replace(/[\[\]]/g,"").trim().split(/\s+/);
-    var task=tokens.shift(), delay=0;
+    let tokens=args.join(" ").replace(/\]\s*\[/g," ").replace(/[\[\]]/g,"").trim().split(/\s+/);
+    let task=tokens.shift(), delay=0;
     if (numeric(tokens[0])) delay=number(tokens.shift(),0,0,2147483647);
-    var value=tokens.join(" ").replace(/^theme:\s*/i,"").trim();
+    let value=tokens.join(" ").replace(/^theme:\s*/i,"").trim();
     if (task==="changeColor") {
-      var name=themeName(value);
+      let name=themeName(value);
       if (!name) return;
       pending.push({at:Date.now()+delay,apply:function () { settings.theme=name; }});
     } else if (task==="changeFont" && value) {
@@ -828,16 +831,16 @@
     applyPending();
   }
   function armNext(interpreter, targetId, seconds) {
-    var id = targetId === "current" || targetId == null ? interpreter._eventId || 0 : Number(targetId);
-    var duration = seconds == null ? 5 : Number(seconds);
+    let id = targetId === "current" || targetId == null ? interpreter._eventId || 0 : Number(targetId);
+    let duration = seconds == null ? 5 : Number(seconds);
     interpreter._fugsNextBubble = null;
     if (!isFinite(id) || Math.floor(id) !== id || !isFinite(duration) || duration <= 0) return;
     interpreter._fugsNextBubble = {id:id, duration:duration*1000, mapId:$gameMap.mapId()};
     ImageManager.loadSystem("Window"); ImageManager.loadSystem("IconSet");
   }
-  var command101 = Game_Interpreter.prototype.command101;
+  let command101 = Game_Interpreter.prototype.command101;
   Game_Interpreter.prototype.command101 = function () {
-    var marker = this._fugsNextBubble;
+    let marker = this._fugsNextBubble;
     if (!marker) return command101.apply(this, arguments);
     if (!(SceneManager._scene instanceof Scene_Map) || marker.mapId !== $gameMap.mapId()) {
       this._fugsNextBubble = null;
@@ -845,13 +848,13 @@
     }
     // Retry without consuming the marker while normal dialogue or assets are busy.
     if ($gameMessage.isBusy() || !ImageManager.isReady()) return false;
-    var params101 = arguments[0] || this._params;
-    var end = this._index+1, lines = [];
+    let params101 = arguments[0] || this._params;
+    let end = this._index+1, lines = [];
     while (this._list[end] && this._list[end].code === 401) {
       lines.push(this._list[end].parameters[0]); end++;
     }
     this._fugsNextBubble = null;
-    var following = this._list[end] && this._list[end].code;
+    let following = this._list[end] && this._list[end].code;
     // Preserve interactive dialogue and face/speaker presentation intact.
     if (params101[0] || params101[4] || following === 102 || following === 103 || following === 104) {
       return command101.apply(this, arguments);
@@ -867,22 +870,22 @@
     return command101.apply(this, arguments);
   };
   ["setup","terminate"].forEach(function (name) {
-    var original = Game_Interpreter.prototype[name];
+    let original = Game_Interpreter.prototype[name];
     Game_Interpreter.prototype[name] = function () {
       this._fugsNextBubble = null;
       if (original) return original.apply(this,arguments);
     };
   });
-  var pluginCommand=Game_Interpreter.prototype.pluginCommand;
+  let pluginCommand=Game_Interpreter.prototype.pluginCommand;
   Game_Interpreter.prototype.pluginCommand=function (command,args) {
     if (pluginCommand) pluginCommand.call(this,command,args);
     if (command==="ShowChatBubble") commandShow(this,args);
     else if (command==="ChatBubble") {
       if (args[0] === "cancel") this._fugsNextBubble = null;
       else if (args[0] === "next") {
-        var id = "current", duration = "5", valid = true;
+        let id = "current", duration = "5", valid = true;
         args.slice(1).forEach(function (arg) {
-          var pair = arg.split(":");
+          let pair = arg.split(":");
           if (pair.length !== 2) valid = false;
           else if (pair[0] === "event") id = pair[1];
           else if (pair[0] === "duration") duration = pair[1];

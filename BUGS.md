@@ -35,4 +35,5 @@ Remaining integration checks:
 - Fonts must be loaded before showing a bubble. Battle targets remain outside the implemented feature set.
 - Version 1.1.0 adds escape codes for converted Show Text; legacy direct text remains plain text. Rich text uses the first theme text color instead of a gradient. See README for fallback behavior and limits.
 - MZ's registered commands and parameter adapter are covered in the MV harness; a full MZ runtime playtest is outstanding.
+- The plugin now uses block-scoped declarations and documents RPG Maker MV 1.6.1+ as its minimum version.
 - Third-party Window_Message-only effects and custom escape drawing/positioning need individual integration. They are not guaranteed by the new conversion path.
