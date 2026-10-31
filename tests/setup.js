@@ -3,11 +3,13 @@ var clock = 100000;
 Date.now = function () { return clock; };
 var checks = 0;
 var diagnosticCalls = 0;
+var checkedRenderers = ["Canvas"];
 console.log = console.warn = function () { diagnosticCalls++; };
 function finish(error) {
   fs.writeFileSync(window.testResultPath, JSON.stringify({
     passed: !error, checks: checks, chromium: process.versions.chromium,
-    pixi: window.PIXI && PIXI.VERSION, error: error && String(error.stack || error)
+    pixi: window.PIXI && PIXI.VERSION, renderers: checkedRenderers,
+    error: error && String(error.stack || error)
   }, null, 2));
   nw.Window.get().close(true);
 }
@@ -50,3 +52,10 @@ $gameMap.event = function (id) { return id === 1 ? event : undefined; };
 var SceneManager = { _scene: new Scene_Map() };
 function Game_Interpreter() { this._eventId = 0; }
 Game_Interpreter.prototype.pluginCommand = function () {};
+var engineHooks = {
+  update: Scene_Map.prototype.update, stop: Scene_Map.prototype.stop,
+  terminate: Scene_Map.prototype.terminate,
+  startEncounterEffect: Scene_Map.prototype.startEncounterEffect,
+  setup: Game_Map.prototype.setup,
+  pluginCommand: Game_Interpreter.prototype.pluginCommand
+};

@@ -4,8 +4,8 @@
 
 /*:
  * @target MV
- * @plugindesc v1.0.1 Speech bubbles that follow events and stack.
- * @version 1.0.1
+ * @plugindesc v1.0.2 Speech bubbles that follow events and stack.
+ * @version 1.0.2
  *
  * @author Fugahagen
  *
@@ -248,6 +248,7 @@
  * Version History
  * ============================================================================
  *
+ * 1.0.2 - [10/31/2026]: Camera anchoring, target visibility, color validation, and dialogue fixes.
  * 1.0.1 - [10/31/2026]: Runtime, styling, layout, lifetime, and cleanup fixes.
  * 1.0 - [3/30/2024]: Initial release
  *
@@ -262,6 +263,7 @@
   var Fugs = window.Fugs = window.Fugs || {};
   var bubbles = Fugs.Bubbles = {};
   var pending = [];
+  var colorContext = document.createElement("canvas").getContext("2d");
   function number(value, fallback, min, max) {
     var n = value === "" || value == null ? fallback : Number(value);
     if (!isFinite(n)) n = fallback;
@@ -270,9 +272,33 @@
   function colors(value, fallback) {
     var result;
     try { result = JSON.parse(value); } catch (ignore) {}
-    if (!Array.isArray(result)) result = String(value || fallback).split(",");
-    result = result.map(function (c) { return String(c).trim(); }).filter(Boolean);
+    if (!Array.isArray(result)) {
+      // Commas inside rgba()/hsl() belong to that color, not the list.
+      result = [];
+      var input = String(value || fallback), depth = 0, start = 0;
+      for (var i = 0; i < input.length; i++) {
+        if (input[i] === "(") depth++;
+        else if (input[i] === ")") depth = Math.max(0, depth - 1);
+        else if (input[i] === "," && depth === 0) {
+          result.push(input.slice(start, i)); start = i + 1;
+        }
+      }
+      result.push(input.slice(start));
+    }
+    result = result.map(function (c) { return cssColor(String(c).trim()); })
+      .filter(validColor);
     return result.length ? result : [fallback];
+  }
+  function validColor(value) {
+    if (!value || !colorContext) return false;
+    // An invalid assignment leaves the old style unchanged. Use two sentinels
+    // so the sentinel itself is still accepted as a valid color.
+    colorContext.fillStyle = "#010203";
+    colorContext.fillStyle = value;
+    if (colorContext.fillStyle !== "#010203") return true;
+    colorContext.fillStyle = "#040506";
+    colorContext.fillStyle = value;
+    return colorContext.fillStyle !== "#040506";
   }
   function cssColor(value) {
     return String(value).replace(/^0x([a-f0-9]{6})$/i, "#$1");
@@ -288,15 +314,7 @@
       textColors: ["#FFFFFF"],
       bubbleAlpha: 0.7,
     },
-    Custom: {
-      bubbleColors: (params["Bubble Colors"] || "#000000")
-        .split(",")
-        .map((c) => c.trim()),
-      textColors: (params["Font Colors"] || "#FFFFFF")
-        .split(",")
-        .map((c) => c.trim()),
-      bubbleAlpha: Number(params["Bubble Alpha"]) || 0.8,
-    },
+    Custom: {},
     Light: {
       bubbleColors: ["#ffffff", "#e6e6e6"], // White tones
       textColors: ["#000000", "#4d4d4d"], // Black tones
@@ -390,6 +408,7 @@
     borderWidth: number(params["Bubble Border Width"], 3, 0, 128),
     borderColor: cssColor(params["Bubble Border Color"] || "#FFFFFF")
   };
+  if (!validColor(settings.borderColor)) settings.borderColor = "#FFFFFF";
   function themeName(name) {
     if (String(name).toLowerCase() === "ff7") return "CrimsonAndBlue";
     return Object.keys(THEMES).filter(function (key) {
@@ -462,8 +481,26 @@
   }
   function target(id) {
     if (id === 0) return $gamePlayer;
-    if (id < 0) return $gamePlayer.followers().follower(-id-1);
-    return $gameMap.event(id);
+    var character = id < 0 ? $gamePlayer.followers().follower(-id-1) : $gameMap.event(id);
+    if (!character || character._erased ||
+        (id < 0 && character.isVisible && !character.isVisible())) return null;
+    return character;
+  }
+  function headPosition(scene, character) {
+    var sprites = scene._spriteset && scene._spriteset._characterSprites;
+    var sprite = sprites && sprites.filter(function (entry) {
+      return entry._character === character;
+    })[0];
+    if (sprite) {
+      var height = sprite.patternHeight ? sprite.patternHeight() : 48;
+      if (!isFinite(height) || height <= 0) height = 48;
+      // Project from the actual sprite into the bubble layer. This includes
+      // camera scale, translation, shake, and nested map-container transforms.
+      return scene.toLocal(sprite.toGlobal(new PIXI.Point(0, -height)));
+    }
+    var zoom = $gameMap.zoom || { x: 1, y: 1 };
+    return new PIXI.Point(character.screenX() * number(zoom.x,1,0.01,100),
+      (character.screenY()-48) * number(zoom.y,1,0.01,100));
   }
   function remove(bubble) {
     if (bubble.container.parent) bubble.container.parent.removeChild(bubble.container);
@@ -482,6 +519,8 @@
     var scene = SceneManager._scene;
     if (!(scene instanceof Scene_Map) || !message || !String(message).trim()) return;
     if (!isFinite(id) || Math.floor(id) !== id) return;
+    var lifetime = duration == null ? 5000 : Number(duration);
+    if (!isFinite(lifetime) || lifetime <= 0) return;
     var character = target(id);
     if (!character) {
       if (debugMode) console.warn("[ChatBubbles] No character for ID " + id);
@@ -496,7 +535,9 @@
       wordWrapWidth: Math.max(1,Math.min(settings.wrapWidth,
         Graphics.width-settings.widthMargin-settings.padding*2-settings.borderWidth*2-8))
     }));
-    var ink = inkBounds(text);
+    var ink;
+    try { ink = inkBounds(text); }
+    catch (error) { text.destroy(true); throw error; }
     text.anchor.set(0.5); text.position.set(ink.x,ink.y); text.alpha=settings.fontAlpha;
     var width=Math.ceil(ink.width+settings.padding*2+settings.widthMargin+settings.borderWidth*2);
     var height=Math.ceil(ink.height+settings.padding*2+settings.heightMargin+settings.borderWidth*2);
@@ -507,7 +548,7 @@
     container.addChild(bg); container.addChild(text);
     var bubble={ eventId:id, target:character, scene:scene, container:container,
       width:width, height:height, createdAt:Date.now(),
-      duration:number(duration,5000,1,2147483647),
+      duration:Math.min(lifetime,2147483647),
       offsetX:settings.offsetX, offsetY:settings.offsetY };
     if (!bubbles[id]) bubbles[id]=[];
     bubbles[id].unshift(bubble); scene.addChild(container); update(scene);
@@ -523,12 +564,13 @@
     var now=Date.now();
     Object.keys(bubbles).forEach(function (id) {
       bubbles[id].slice().forEach(function (bubble) {
-        if (bubble.scene!==scene || now-bubble.createdAt>=bubble.duration) remove(bubble);
+        var currentTarget = target(bubble.eventId);
+        if (bubble.scene!==scene || now-bubble.createdAt>=bubble.duration ||
+            !currentTarget || currentTarget!==bubble.target) remove(bubble);
       });
       var stack=bubbles[id];
       if (!stack || !stack.length) return;
-      var zoom=$gameMap.zoom || {x:1,y:1};
-      var zx=number(zoom.x,1,0.01,100), zy=number(zoom.y,1,0.01,100);
+      var head=headPosition(scene,stack[0].target);
       // Fit and clamp the stack as a group; clamping each row would overlap
       // older bubbles at the top edge.
       var naturalHeight=stack.reduce(function (sum,bubble) {
@@ -541,13 +583,13 @@
         bubble.fit=Math.min(stackFit,Math.max(1,Graphics.width-8)/bubble.width);
         totalHeight+=bubble.height*bubble.fit;
       });
-      var bottom=stack[0].target.screenY()*zy-48*zy+stack[0].offsetY;
+      var bottom=head.y+stack[0].offsetY;
       var currentY=Math.max(totalHeight+4,Math.min(Graphics.height-4,bottom));
       stack.forEach(function (bubble) {
         var age=Math.max(0,now-bubble.createdAt);
         var fit=bubble.fit;
         var halfW=bubble.width*fit/2, halfH=bubble.height*fit/2;
-        var x=bubble.target.screenX()*zx+bubble.offsetX;
+        var x=head.x+bubble.offsetX;
         var y=currentY-halfH;
         bubble.container.position.set(
           Math.max(halfW+4,Math.min(Graphics.width-halfW-4,x)),
@@ -576,6 +618,13 @@
   function commandShow(interpreter,args) {
     var id=interpreter._eventId || 0, seconds=5, message;
     var divider=args.indexOf("--");
+    if (divider >= 0) {
+      var prefix = args.slice(0,divider);
+      var optionPrefix = prefix.every(numeric) || prefix.some(function (token) {
+        return /^(event|duration):/.test(token);
+      });
+      if (!optionPrefix) divider = -1; // Ordinary dialogue may contain "--".
+    }
     if (divider>=0) {
       var options=args.slice(0,divider);
       message=args.slice(divider+1).join(" ");

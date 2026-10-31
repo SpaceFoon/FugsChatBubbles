@@ -1,6 +1,6 @@
 # Fugs Chatter and Speech Bubbles
 
-**Version:** 1.0.1 · **Engine:** RPG Maker MV · **License:** [GNU GPL-3.0](LICENSE)
+**Version:** 1.0.2 · **Engine:** RPG Maker MV · **License:** [GNU GPL-3.0](LICENSE)
 
 Map speech bubbles follow events, the player, or followers. Messages stack, bounce in, and fade out. Text and backgrounds support themes and gradients.
 
@@ -21,7 +21,7 @@ Event IDs: positive = map event, 0 = player, -1 = first follower, -2 = second fo
 
 The second example supplies only the duration. When the event ID is omitted, the current map event is used; common events without a map event default to the player.
 
-Duration is in seconds and includes the fade. Nonpositive durations, empty messages, and missing targets are ignored. Debug Mode warns about missing targets.
+Duration is in seconds and includes the fade. Nonpositive durations, empty messages, and missing targets are ignored. Debug Mode warns about missing targets. Invisible followers and erased events are ignored; their existing bubbles are removed.
 
 For a message starting with a number, use the explicit separator:
 
@@ -29,7 +29,7 @@ For a message starting with a number, use the explicit separator:
     ShowChatBubble event:0 duration:8 -- 2 enemies left
     ShowChatBubble 1 8 -- 1 8 is part of the message
 
-Text following -- is always the message. Before it, use named event:/duration: options or the existing numeric arguments. Without --, legacy numeric prefixes retain their original meaning. Tokens such as 2enemies are treated as text.
+Text following -- is always the message. Before it, use named event:/duration: options or the existing numeric arguments. In ordinary dialogue, a -- after words is preserved as text. Without --, legacy numeric prefixes retain their original meaning. Tokens such as 2enemies are treated as text.
 
 ## Change the style of new bubbles
 
@@ -74,7 +74,7 @@ Preset themes supply the text colors, background colors, and background opacity.
 | Bubble Border Color | 0xffffff | Border color; #ffffff also works |
 | Canvas Rendering | ctx | Deprecated; rendering always uses a 2D canvas |
 
-Colors accept comma-separated CSS colors or an MV JSON color array. A single color gives a solid fill.
+Colors accept comma-separated CSS colors or an MV JSON color array. Commas inside rgba()/hsl() stay within that color. A single color gives a solid fill. Invalid entries are ignored; an empty/invalid list falls back to white text or a black background, and an invalid border color falls back to white.
 
 Themes: custom, BlackWhite, WhiteBlack, Light, Dark, CrimsonAndBlue, FieryCrimson, ShadowedViolet, RoyalGold, EmeraldDream, SapphireGlimmer, EtherealGlow, TwilightSky, FrostedTeal, SunsetBloom, AutumnHearth, SoftRose.
 
@@ -84,7 +84,7 @@ Visible glyph bounds are centered in the background, including short lowercase m
 
 Bubbles and stacks fit within the screen. Large messages or dense stacks shrink to fit, which can reduce readability. Bubbles clear on encounters, transfers, and when leaving the map, including opening a menu. They are map-only and do not persist through saving/loading.
 
-The legacy $gameMap.zoom.x/y coordinates are supported. A complete game with MBS or other camera plugins still needs an integration check; camera plugins may apply their own translations. RPG Maker escape codes and battle-character targets are not implemented.
+When a rendered character sprite is available, its actual transformed head position anchors the bubble, including camera translation, scale, and shake. The legacy $gameMap.zoom.x/y coordinates are used only as a fallback. A complete game with MBS or other camera plugins still needs an integration check. RPG Maker escape codes and battle-character targets are not implemented.
 
 For script calls, Fugs.ChatBubbles.show(eventId, durationMs, message) shows a map bubble and Fugs.ChatBubbles.clear() removes all bubbles.
 

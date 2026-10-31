@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.2 — 2026-10-31
+
+- Anchored bubbles to rendered character sprite transforms, including camera translation, scaling, and shake.
+- Rejected erased events and invisible followers; removed bubbles when those targets disappear.
+- Preserved literal -- inside ordinary dialogue.
+- Validated CSS colors and handled commas inside rgba()/hsl() colors without crashing gradients.
+- Applied the same lifetime validation to script calls and cleaned text textures if glyph measurement fails.
+- Expanded verification to 119 checks, including actual CanvasRenderer pixels and WebGL rendering, zero opacity, rounded borders, defaults, and moving cameras.
+
 ## 1.0.1 — 2026-10-31
 
 - Fixed stock MV JavaScript compatibility and missing plugin state initialization.
