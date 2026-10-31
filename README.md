@@ -116,25 +116,25 @@ For script calls, `Fugs.ChatBubbles.show(eventId, durationMs, message)` shows a 
 
 ## Releases and plugin directory listing
 
-This section is for maintainers. It explains how a release gets from this repository into the Fugs Plugins directory.
+This section is for maintainers. Published releases update the shared [plugin directory](https://github.com/SpaceFoon/RPG-Maker-MV-MZ-plugins/blob/main/plugins.json), which is the source of truth for the website and game sync.
 
-Release automation runs on your Windows PC. It does not use GitHub Actions or any GitHub runner. The PC checks GitHub for pushed version tags, then builds the ZIP and publishes the release and catalog pull request from a local checkout.
+Release automation runs on your Windows PC. It does not use GitHub Actions or any GitHub runner. The PC checks GitHub for pushed version tags, then builds and publishes the release from a local checkout and notifies the public directory workflow.
 
 Install it once from PowerShell:
 
     powershell -ExecutionPolicy Bypass -File .\scripts\Install-LocalReleaseAutomation.ps1
 
-The installer signs in through the browser only if the saved GitHub CLI login is missing or invalid, checks that your account can write to this repository and the private [`SpaceFoon/fugs-plugins`](https://github.com/SpaceFoon/fugs-plugins) repository, then registers a Task Scheduler job for the current Windows account. Git uses the same locally saved login. No account token is copied into the repository or an Actions secret.
+The installer signs in through the browser only if the saved GitHub CLI login is missing or invalid, checks that your account can publish this repository's release and dispatch an update to [`SpaceFoon/RPG-Maker-MV-MZ-plugins`](https://github.com/SpaceFoon/RPG-Maker-MV-MZ-plugins), then registers a Task Scheduler job for the current Windows account. Git uses the same locally saved login. No account token is copied into the repository or an Actions secret.
 
-While you are signed in and the PC is on, the watcher checks for tags every five minutes. On first start it retries the catalog sync for the latest published release, then records existing tags so old releases are not republished. After that, push a version tag to start a release:
+While you are signed in and the PC is on, the watcher checks for tags every five minutes. On first start it retries the directory update for the latest published release, then records existing tags so old releases are not republished. After that, push a version tag to start a release:
 
 The task uses the installing Windows user's saved credentials. Progress, release output, and retry errors are recorded in `.local-release-automation/watcher.log`.
 
     git push origin v1.1.0
 
-The PC checks out that exact tag locally, verifies the plugin version, creates `release-dist/FugsChatBubbles-v1.1.0.zip`, uploads it as a GitHub release, and opens a pull request updating the private plugin directory. Merge the pull request for the public directory listing to change. If the PC is off, it catches up when the watcher next runs.
+The PC checks out that exact tag locally, verifies the plugin version, creates `release-dist/FugsChatBubbles-v1.1.0.zip`, uploads it as a GitHub release, and sends the release details to the directory workflow. That workflow updates `plugins.json` on the directory's default branch. No separate catalog PR needs to be merged. The website fetches the shared JSON when a page opens; the game's `plugin-sync.sh pull` reads the same release data and skips downgrades. If the PC is off, it catches up when the watcher next runs.
 
-The release and directory changes are made through the GitHub CLI using the Windows account's saved login. GitHub still needs to authorize publishing and private-repository writes, so a fresh sign-in is needed if that saved login is revoked or becomes invalid; it is not requested for every release.
+The release and directory notification use the GitHub CLI with the Windows account's saved login. A fresh sign-in is needed only if that login is revoked or becomes invalid; it is not requested for every release.
 
 To manually retry only the directory update for an existing release, run:
 
@@ -160,3 +160,4 @@ See [CHANGELOG.md](CHANGELOG.md) and [BUGS.md](BUGS.md) for the fix record.
 ## License and credit
 
 GNU GPL-3.0; see [LICENSE](LICENSE). Credit Fugahagen if you wish.
+
