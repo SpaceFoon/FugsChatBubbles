@@ -26,8 +26,8 @@ The website consumer is complete and pushed to `SpaceFoon/fugs-plugins/master` a
 
 Verification covered the real manifest, search and engine filters, desktop and narrow-screen rendering, an unknown plugin, the playbook, and a tagged download with a matching SHA-256. Controlled localhost responses tested HTTP and malformed-data failures, recovery, changed metadata without rebuilding, and the forum picker. Directory tests, workspace typechecking, and the production build passed.
 
-These checks do not establish live deployment. Darren deploys the committed frontend through Sitebase; after that activation, directory metadata updates require no frontend rebuild (subject to GitHub CDN propagation). Release sync itself does not access or deploy the VPS.
+Public browser checks after Darren deployed verified Chat Bubbles v1.1.0, MZ/MV filtering, and the new installation text. The live build marker was `0272e4a`, while the final published frontend artifact records `91981ee`; the directory integration is live, but the final frontend fixes still need a full Sitebase deployment. Cache-busted public requests returned the same older marker with Cloudflare status DYNAMIC. Sitebase now checks enabled storefronts and their cloned build markers before success. Darren runs `git pull --ff-only` and `sudo bash scripts/deploy-sites.sh` in `/opt/sitebase`, without frontend reuse flags. Release sync itself does not access or deploy the VPS.
 
 The earlier PR #5 in `SpaceFoon/fugs-plugins` updated the website's old static catalog data. It was not a shared-directory update. Future Chat Bubbles releases use the shared JSON directly.
 
-*Last updated: 2026-10-31 â€” record the verified, pushed website consumer and retain the owner deployment boundary.*
+*Last updated: 2026-10-31 — record live MV/MZ integration and the final frontend deployment mismatch.*
