@@ -118,18 +118,24 @@ For script calls, `Fugs.ChatBubbles.show(eventId, durationMs, message)` shows a 
 
 This section is for maintainers. It explains how a release gets from this repository into the Fugs Plugins directory.
 
-The [release workflow](.github/workflows/release.yml) runs when a `v*` tag is pushed, or when you manually run **Actions → Release** and enter a version. For a normal release, commit and push the files you want included, tag that commit, then push the tag:
+Releases run from your PC with PowerShell, Git, Node.js, and the [GitHub CLI](https://cli.github.com/). Sign in once with the browser-based GitHub CLI flow:
 
-    git tag v1.1.0
-    git push origin v1.1.0
+    gh auth login --hostname github.com --git-protocol https --web
 
-It creates a GitHub release and a ready-to-install `FugsChatBubbles-v1.1.0.zip` containing `FugsChatBubbles.js`, `LICENSE`, `README.md`, and generated `INSTALL.txt`.
+The account must have write access to both this repository and the private [`SpaceFoon/fugs-plugins`](https://github.com/SpaceFoon/fugs-plugins) repository. The release script configures Git to use the local GitHub CLI login; it does not need a repository Actions secret, a personal access token copied into settings, or a GitHub-hosted runner.
 
-After publishing the release, the workflow updates the `fugs-chat-bubbles` entry in the private [`SpaceFoon/fugs-plugins`](https://github.com/SpaceFoon/fugs-plugins) repository with the new version and ZIP download link. It makes a branch and opens a pull request; **the listing changes only after that pull request is merged**.
+Commit and push the release source first. Set `@version` in `FugsChatBubbles.js` to the intended release version and add its entry to `CHANGELOG.md`. Then run:
 
-For this directory update, add a repository Actions secret named `FUGS_SITE_SYNC_TOKEN`. Its fine-grained token must have access to `SpaceFoon/fugs-plugins`, with **Contents: read and write** and **Pull requests: read and write**. The token owner needs write access to that repository. The release upload uses GitHub's built-in token; this extra token is only for the private directory repository.
+    git push origin main
+    powershell -ExecutionPolicy Bypass -File .\scripts\Release-Plugin.ps1 -Version 1.1.0
 
-If the secret is missing, expired, or lacks access, the ZIP and GitHub release may still be created, but the directory pull request will fail. Check the **Sync catalog site PR** step in the Actions run. After fixing the token, rerun the release workflow; confirm that the catalog pull request appears and is merged before expecting the directory page to show the new version.
+The script checks that the working tree is clean, the current commit is pushed, the requested version matches the plugin header, and the account can write to both repositories. It creates `release-dist/FugsChatBubbles-v1.1.0.zip`, publishes the GitHub release, updates the private directory's metadata on a branch, and opens a pull request. Review and merge that pull request for the public directory listing to change.
+
+To retry only the directory update for an existing release whose catalog sync failed, run:
+
+    powershell -ExecutionPolicy Bypass -File .\scripts\Release-Plugin.ps1 -Version 1.0.2 -SyncOnly
+
+This checks that the existing release ZIP is present, then makes or reports the catalog pull request without rebuilding or republishing the release. Pushing a tag alone does not run a release; use the local script.
 
 ## Verification
 
