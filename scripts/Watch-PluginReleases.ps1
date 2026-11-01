@@ -21,6 +21,9 @@ $statePath = Join-Path $automationDirectory 'state.json'
 $logPath = Join-Path $automationDirectory 'watcher.log'
 $lockPath = Join-Path $automationDirectory 'watcher.lock'
 $releaseScript = Join-Path $RepoPath 'scripts/Release-Plugin.ps1'
+$githubRoot = Split-Path -Parent $RepoPath
+$statusScript = Join-Path $githubRoot 'fugs-plugins/scripts/plugin-sync/snapshot.mjs'
+$statusDir = Join-Path $githubRoot 'fugs-plugins/.local/plugin-status'
 New-Item -ItemType Directory -Path $automationDirectory -Force | Out-Null
 
 function Write-Log {
@@ -174,6 +177,15 @@ try {
 
   $state = Read-State
   do {
+    # This local report is private and stays in the ignored .local directory.
+    # A failed scan never stops or publishes a release.
+    if (Test-Path -LiteralPath $statusScript -PathType Leaf) {
+      try {
+        $scanOutput = & node $statusScript (Join-Path $githubRoot 'LostAges') (Join-Path $githubRoot 'story-editor') $githubRoot $statusDir 2>&1
+        if ($LASTEXITCODE -ne 0) { throw ($scanOutput -join ' ') }
+        Write-Log ($scanOutput -join ' ')
+      } catch { Write-Log "Private plugin status refresh failed: $($_.Exception.Message)" 'WARN' }
+    }
     if (!$state.initialized) {
       try {
         $state = Initialize-WatcherState
