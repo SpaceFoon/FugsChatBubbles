@@ -57,6 +57,20 @@ For a message starting with a number, use the explicit separator:
 
 Text following -- is always the message. Before it, use named event:/duration: options or the existing numeric arguments. In ordinary dialogue, a -- after words is preserved as text. Without --, legacy numeric prefixes retain their original meaning. Tokens such as 2enemies are treated as text.
 
+## Compatibility with existing LostAges commands
+
+Existing projects that have at least two legacy-only choice or character-offset settings and no explicit `Legacy Direct Commands` setting use the original direct-command renderer. New installations default to the modern renderer; set `Legacy Direct Commands` explicitly to select either behavior. A single legacy-only setting is ambiguous and produces a warning. The explicit `--` and named `event:`/`duration:` forms use the modern renderer. `ChatBubble next` and the MZ Next Show Text command continue to use the modern renderer.
+
+The older flag forms remain available in either mode:
+
+```text
+ShowChatBubble PERSIST ARROW_LEFT TRANSPARENT 1 5 Hello
+ShowChatBubbleWithChoices PERSIST ARROW_LEFT TRANSPARENT 1 6 20 Choose | One | Two
+ShowScreenBubble 100 100 5 Hello
+ShowBattlerBubble ACTOR 1 5 Hello
+```
+
+Choices remain open until selected and write a one-based result to the configured variable. The compatibility paths have fixture coverage against MV engine scripts and MZ 1.9 engine scripts, but still need full LostAges and native MZ playthroughs. The compatibility code retains the original game plugin's license and terms notice alongside the repository's GPL-3.0 license. Review both notices before redistributing.
 ## Change the style of new bubbles
 
     ChatBubble changeColor 0 theme: Dark
@@ -108,11 +122,11 @@ Themes: custom, BlackWhite, WhiteBlack, Light, Dark, CrimsonAndBlue, FieryCrimso
 
 Visible glyph bounds are centered in the background, including short lowercase messages. Wrapped lines use centered alignment. The entire bubble scales around its center during entry.
 
-Bubbles and stacks fit within the screen. Large messages or dense stacks shrink to fit, which can reduce readability. Bubbles clear on encounters, transfers, and when leaving the map, including opening a menu. They are map-only and do not persist through saving/loading.
+Modern-rendered bubbles and stacks fit within the screen; dense stacks can shrink. They clear on encounters, transfers, and when leaving the map and do not persist through saving/loading. Legacy direct commands additionally support screen and battle targets and the PERSIST flag for scene transitions; persistence through saving/loading is not provided.
 
-When a rendered character sprite is available, its actual transformed head position anchors the bubble, including camera translation, scale, and shake. The legacy $gameMap.zoom.x/y coordinates are used only as a fallback. A complete game with MBS or other camera plugins still needs an integration check. Battle-character targets are not implemented.
+For modern-rendered map bubbles, the transformed character-sprite head position accounts for camera translation, scale, and shake, with $gameMap.zoom.x/y as fallback. Legacy direct commands use their original position logic and provide battle-character targets via ShowBattlerBubble. A complete game with MBS or other camera plugins still needs an integration check.
 
-For script calls, `Fugs.ChatBubbles.show(eventId, durationMs, message)` shows a map bubble and `Fugs.ChatBubbles.clear()` removes all bubbles. An optional fourth argument `true` uses the formatted Show Text renderer; callers must ensure the Window and IconSet system images are loaded first. It returns `false` if formatted text cannot be rendered, such as when it exceeds a safety limit. The original direct commands and default script calls retain their plain-text Pixi renderer.
+For script calls, `Fugs.ChatBubbles.show(eventId, durationMs, message)` shows a map bubble and `Fugs.ChatBubbles.clear()` removes all bubbles. An optional fourth argument `true` uses the formatted Show Text renderer; callers must ensure the Window and IconSet system images are loaded first. It returns `false` if formatted text cannot be rendered, such as when it exceeds a safety limit. Default script calls and modern direct commands use plain-text Pixi rendering; legacy direct commands use their original escape conversion.
 
 ## Releases and the shared plugin directory
 
@@ -147,7 +161,7 @@ Run the regression harness with an installed MV SDK runtime:
     powershell -ExecutionPolicy Bypass -File tests/run-mv.ps1
     powershell -ExecutionPolicy Bypass -File tests/run-mv.ps1 -EnginePath "C:\path\to\RPG Maker MV"
 
-The harness uses the installation's Chromium, Pixi, GameFont, Bitmap, Window_Base, windowskin, and icons with small game-state stubs. It also loads the real MV Game_Interpreter and Game_Message to test event execution, normal-message waits, choices and callbacks, and unsupported-code fallback. All 170 assertions pass, including real Canvas/WebGL rendering and repeated formatted-texture cleanup. MZ registered-command callbacks and the parameter adapter are checked inside MV. Scratch files are removed afterward. This is not a full MZ engine or third-party message-plugin playtest.
+The harness uses the installation's Chromium, Pixi, GameFont, Bitmap, Window_Base, windowskin, and icons with small game-state stubs. It also loads the real MV Game_Interpreter and Game_Message to test event execution, normal-message waits, choices and callbacks, and unsupported-code fallback. The MV fixture passes 194 assertions, including Canvas/WebGL rendering, legacy choices and cleanup. A separate fixture exercises 13 assertions with MZ 1.9 engine scripts and Pixi 5 in the local NW runtime. Scratch files are removed afterward. Full LostAges and native MZ playthroughs and third-party message-plugin checks remain outstanding.
 
 See [CHANGELOG.md](CHANGELOG.md) and [BUGS.md](BUGS.md) for the fix record.
 
