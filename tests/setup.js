@@ -113,5 +113,5 @@ Object.defineProperty(window, "$gameMessage", {
     configurable:true,get:entry[1],set:entry[2]
   });
 });
-Object.assign(window,{finish:finish,assert:assert});
+Object.assign(window,{finish:finish,assert:assert,checkedRenderers:checkedRenderers});
 })();
